@@ -1,5 +1,25 @@
-# Vue 3 + Vite
+# Carevial
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+智能家庭用药管理 — 前后端同仓（monorepo）。
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+```
+Carevial/
+├── frontend/   # Vue 3 + Vite
+└── backend/    # Express
+```
+
+## 前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## 后端
+
+```bash
+cd backend
+npm install
+npm run dev
+```
