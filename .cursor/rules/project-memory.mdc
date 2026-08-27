@@ -1,0 +1,17 @@
+---
+description: Carevial 项目记忆入口。新对话、上下文压缩后必须先读 AI_CONTEXT.md。
+alwaysApply: true
+---
+
+# Carevial
+
+开始任何任务前，先读仓库根目录的 [`AI_CONTEXT.md`](../../AI_CONTEXT.md)。
+
+其中包含：路由约定、前后端代码风格、鉴权接口、已知坑、禁止事项、UI 预览链接。不要凭旧对话猜测。
+
+硬性：
+- 不改 `frontend/src/router/index.js` 的路由结构
+- 不改 `medicine-reminder` 仓库
+- 后端 CommonJS + 分号；前端无分号
+- 回复用简体中文
+- 不把 `.env` 密钥写入回复或文档
