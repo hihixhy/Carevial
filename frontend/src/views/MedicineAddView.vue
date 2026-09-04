@@ -154,13 +154,8 @@ function triggerFileInput() {
           <select
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer"
           >
-            <option value="">选择家人</option>
-            <option value="fm-shared">家庭公用</option>
-            <option
-              v-for="m in familyMembers.filter((fm) => fm.id !== 'fm-shared')"
-              :key="m.id"
-              :value="m.id"
-            >
+            <option value="">不指定（家庭公用）</option>
+            <option v-for="m in familyMembers" :key="m.id" :value="m.id">
               {{ m.name }} ({{ m.relationship }})
             </option>
           </select>

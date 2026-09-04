@@ -1,5 +1,4 @@
 <script setup>
-import { computed } from 'vue'
 import { todayReminders } from '../../mocks/dashboard.js'
 import { useMedicineCheckin } from '../../composables/useMedicineCheckin.js'
 
@@ -42,8 +41,6 @@ const grouped = timeGroups
   }))
   .filter((g) => g.items.length > 0)
 
-const allCheckedIn = computed(() => checkedCount.value >= total && total > 0)
-
 const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
 </script>
 
@@ -84,15 +81,6 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
           </span>
         </div>
       </div>
-      <div
-        v-if="allCheckedIn"
-        class="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-100"
-      >
-        <i class="ri-check-double-line text-emerald-500 text-[15px]" />
-        <span class="text-[13px] font-semibold text-emerald-700"
-          >今天的药全部打完卡了，太棒了!</span
-        >
-      </div>
     </div>
 
     <div class="px-4 md:px-6 pb-4 md:pb-6">
@@ -122,12 +110,14 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
               <div
                 v-for="reminder in group.items"
                 :key="reminder.id"
-                class="flex items-start gap-3 md:gap-4 py-3 group"
+                class="flex items-center gap-3 md:gap-4 py-3 group"
               >
-                <div class="w-[36px] md:w-[40px] text-right flex-shrink-0 pt-0.5">
+                <div
+                  class="w-[36px] md:w-[40px] text-right flex-shrink-0 flex items-center justify-end h-10"
+                >
                   <span
                     :class="[
-                      'text-[13px] md:text-[14px] font-bold tabular-nums transition-colors',
+                      'text-[13px] md:text-[14px] font-bold tabular-nums transition-colors leading-none',
                       isCheckedIn(reminder.id) ? 'text-foreground-300' : 'text-foreground-500'
                     ]"
                   >
@@ -135,7 +125,7 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                   </span>
                 </div>
 
-                <div class="relative flex-shrink-0 z-10">
+                <div class="relative flex-shrink-0 z-10 flex items-center justify-center w-3 h-10">
                   <div
                     :class="[
                       'w-3 h-3 rounded-full ring-[3px] transition-all duration-300',
@@ -143,16 +133,15 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                         ? 'bg-emerald-400 ring-emerald-50'
                         : 'bg-primary-400 ring-white group-hover:ring-primary-50'
                     ]"
-                    style="margin-top: 6px"
                   />
                 </div>
 
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-start justify-between gap-2 md:gap-3">
+                  <div class="flex items-center justify-between gap-2 md:gap-3">
                     <button
                       type="button"
                       :class="[
-                        'rounded-xl px-3 md:px-4 py-2.5 md:py-3 flex-1 text-left transition-all duration-200 cursor-pointer border',
+                        'rounded-xl px-3 md:px-4 h-10 flex-1 text-left transition-all duration-200 cursor-pointer border flex items-center',
                         isCheckedIn(reminder.id)
                           ? 'bg-emerald-50/60 border-emerald-100'
                           : 'bg-background-50 border-transparent hover:bg-background-100/80 hover:border-background-200'
@@ -161,7 +150,7 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                     >
                       <p
                         :class="[
-                          'text-[14px] md:text-[15px] font-semibold transition-all',
+                          'text-[14px] md:text-[15px] font-semibold transition-all leading-none',
                           isCheckedIn(reminder.id)
                             ? 'text-foreground-400 line-through'
                             : 'text-foreground-900'
@@ -169,17 +158,11 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                       >
                         {{ reminder.medicineName }}
                       </p>
-                      <p
-                        class="text-[12px] md:text-[13px] text-foreground-400 mt-1 flex items-center gap-1.5"
-                      >
-                        <i class="ri-user-line text-[12px]" />
-                        {{ reminder.familyMemberName }}
-                      </p>
                     </button>
                     <button
                       type="button"
                       :class="[
-                        'w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 mt-1',
+                        'w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0',
                         isCheckedIn(reminder.id)
                           ? 'bg-emerald-500 text-white'
                           : 'text-foreground-300 hover:text-primary-600 hover:bg-primary-50'

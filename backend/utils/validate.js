@@ -38,11 +38,58 @@ const isPurposeValid = (purpose) => {
   return ['register', 'login', 'change_email'].includes(p);
 };
 
+// 年龄校验（0-120岁,有值时校验）
+const isAgeValidIfPresent = (age) => {
+  if (!isNotEmpty(age)) return true;
+  const num = Number(age);
+  if (isNaN(num) || !Number.isInteger(num)) return false;
+  return num >= 0 && num <= 120;
+};
+
+// ID校验（正整数）
+const isIdValid = (id) => {
+  if (!isNotEmpty(id)) return false;
+  const s = String(id).trim();
+  if (!/^\d+$/.test(s)) return false;
+  const num = Number(s);
+  return Number.isInteger(num) && num > 0;
+};
+
+// 血型校验（有值时校验）
+const isBloodTypeValidIfPresent = (bloodType) => {
+  if (!isNotEmpty(bloodType)) return true;
+  return ['A型', 'B型', 'AB型', 'O型'].includes(String(bloodType).trim());
+};
+
+// 标签数组校验
+const isStringArrayValid = (arr, { maxItems = 20, maxLen = 50 } = {}) => {
+  if (arr == null) return true;
+  if (!Array.isArray(arr)) return false;
+  if (arr.length > maxItems) return false;
+  for (const item of arr) {
+    if (typeof item !== 'string') return false;
+    const s = item.trim();
+    if (!s || s.length > maxLen) return false;
+  }
+  return true;
+};
+
+// 健康档案备注校验（有值时校验）
+const isMedicalNotesValidIfPresent = (notes) => {
+  if (!isNotEmpty(notes)) return true;
+  return String(notes).trim().length <= 1000;
+};
+
 module.exports = {
   isNotEmpty,
   isEmail,
   isUsernameValid,
   isPasswordValid,
   isCodeValid,
-  isPurposeValid
+  isPurposeValid,
+  isAgeValidIfPresent,
+  isIdValid,
+  isBloodTypeValidIfPresent,
+  isStringArrayValid,
+  isMedicalNotesValidIfPresent
 };

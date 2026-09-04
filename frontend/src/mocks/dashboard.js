@@ -1,10 +1,9 @@
 export const familyMembers = [
-  { id: 'fm-1', name: '我自己', relationship: '本人', avatarUrl: null },
-  { id: 'fm-2', name: '王芳', relationship: '配偶', avatarUrl: null },
-  { id: 'fm-3', name: '张建国', relationship: '父亲', avatarUrl: null },
-  { id: 'fm-4', name: '李秀兰', relationship: '母亲', avatarUrl: null },
-  { id: 'fm-5', name: '张小宝', relationship: '孩子', avatarUrl: null },
-  { id: 'fm-shared', name: '家庭公用', relationship: '共用', avatarUrl: null }
+  { id: 'fm-1', name: '我自己', relationship: '本人', age: 35, avatarUrl: null },
+  { id: 'fm-2', name: '王芳', relationship: '配偶', age: 33, avatarUrl: null },
+  { id: 'fm-3', name: '张建国', relationship: '父亲', age: 62, avatarUrl: null },
+  { id: 'fm-4', name: '李秀兰', relationship: '母亲', age: 60, avatarUrl: null },
+  { id: 'fm-5', name: '张小宝', relationship: '孩子', age: 8, avatarUrl: null }
 ]
 
 export const medicines = [
@@ -19,7 +18,7 @@ export const medicines = [
     expirationDate: '2026-10-15',
     notes: '饭后服用，过敏者禁用',
     imageUrl: null,
-    familyMemberId: 'fm-shared',
+    familyMemberId: null,
     familyMemberName: '家庭公用'
   },
   {
@@ -33,7 +32,7 @@ export const medicines = [
     expirationDate: '2026-08-08',
     notes: '饭后服用，不宜长期使用',
     imageUrl: null,
-    familyMemberId: 'fm-shared',
+    familyMemberId: null,
     familyMemberName: '家庭公用'
   },
   {
@@ -47,7 +46,7 @@ export const medicines = [
     expirationDate: '2027-03-01',
     notes: '',
     imageUrl: null,
-    familyMemberId: 'fm-shared',
+    familyMemberId: null,
     familyMemberName: '家庭公用'
   },
   {
@@ -131,7 +130,7 @@ export const medicines = [
     expirationDate: '2026-08-20',
     notes: '饭前服用，和其他药隔2小时',
     imageUrl: null,
-    familyMemberId: 'fm-shared',
+    familyMemberId: null,
     familyMemberName: '家庭公用'
   },
   {
@@ -145,7 +144,7 @@ export const medicines = [
     expirationDate: '2026-08-25',
     notes: '冰箱冷藏，温水冲服',
     imageUrl: null,
-    familyMemberId: 'fm-shared',
+    familyMemberId: null,
     familyMemberName: '家庭公用'
   }
 ]

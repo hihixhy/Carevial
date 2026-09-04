@@ -117,13 +117,7 @@ const daysUntilExpiry = computed(() =>
         </div>
         <div class="flex items-center px-5 py-4 md:px-6 md:py-4">
           <span class="text-[13px] text-foreground-400 w-[88px] flex-shrink-0">服用人员</span>
-          <span class="text-[14px] text-foreground-800 flex items-center gap-1.5">
-            <i
-              v-if="medicine.familyMemberId === 'fm-shared'"
-              class="ri-group-line text-[14px] text-foreground-400"
-            />
-            {{ medicine.familyMemberName }}
-          </span>
+          <span class="text-[14px] text-foreground-800">{{ medicine.familyMemberName }}</span>
         </div>
         <div class="flex items-center px-5 py-4 md:px-6 md:py-4">
           <span class="text-[13px] text-foreground-400 w-[88px] flex-shrink-0">用法用量</span>

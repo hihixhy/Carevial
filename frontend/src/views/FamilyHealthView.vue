@@ -1,29 +1,62 @@
 <script setup>
-import { ref } from 'vue'
-import { familyHealthProfiles } from '../mocks/family-health.js'
+import { ref, onMounted, watch, computed } from 'vue'
+import { getHealthProfiles, updateHealthProfile } from '../api/health'
+import { isStringArrayValid, isMedicalNotesValidIfPresent } from '../utils/validate'
+import { ElMessage } from 'element-plus'
+import 'element-plus/es/components/message/style/css'
+import { ElSkeleton, ElSkeletonItem } from 'element-plus'
+import 'element-plus/es/components/skeleton/style/css'
+import 'element-plus/es/components/skeleton-item/style/css'
 
-const profiles = ref(
-  familyHealthProfiles.map((p) => ({
-    ...p,
-    allergies: [...p.allergies],
-    chronicConditions: [...p.chronicConditions],
-    contraindications: [...p.contraindications]
-  }))
-)
+const profiles = ref([])
+const error = ref('')
+const loading = ref(false)
+const submitting = ref(false)
 const expandedId = ref(null)
 const showEditModal = ref(false)
+// 健康档案的信息，不参与表单输入
 const editingProfile = ref(null)
+// 可修改的健康档案信息
 const editForm = ref(null)
+const NOTES_MAX = 1000
+const TAG_MAX_ITEMS = 20
+const TAG_MAX_LEN = 50
 
 const newAllergy = ref('')
 const newCondition = ref('')
 const newContraindication = ref('')
 
-function toggleExpand(id) {
+watch(
+  [editForm, newAllergy, newCondition, newContraindication],
+  () => {
+    error.value = ''
+  },
+  { deep: true }
+)
+
+const notesLength = computed(() => {
+  return (editForm.value?.medicalNotes || '').length
+})
+
+// 展开/折叠家庭成员健康档案
+const toggleExpand = (id) => {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-function openEditModal(profile) {
+const loadProfiles = async () => {
+  loading.value = true
+  try {
+    const res = await getHealthProfiles()
+    profiles.value = res.data || []
+  } catch (err) {
+    ElMessage.error(err.message || '加载健康档案列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const openEditModal = (profile) => {
+  error.value = ''
   editingProfile.value = profile
   editForm.value = {
     ...profile,
@@ -37,19 +70,74 @@ function openEditModal(profile) {
   showEditModal.value = true
 }
 
-function handleSaveEdit(e) {
-  e.preventDefault()
-  if (!editForm.value || !editingProfile.value) return
-  profiles.value = profiles.value.map((p) =>
-    p.id === editingProfile.value.id ? { ...editForm.value } : p
-  )
+const closeEditModal = () => {
   showEditModal.value = false
   editingProfile.value = null
   editForm.value = null
+  error.value = ''
+  newAllergy.value = ''
+  newCondition.value = ''
+  newContraindication.value = ''
 }
 
-function addItemToEditForm(field, value) {
+const handleSaveEdit = async () => {
+  if (!editForm.value || !editingProfile.value) return
+
+  error.value = ''
+  if (!isMedicalNotesValidIfPresent(editForm.value.medicalNotes)) {
+    error.value = '备注不能超过1000个字符'
+    return
+  }
+  if (!isStringArrayValid(editForm.value.allergies)) {
+    error.value = '过敏史格式无效'
+    return
+  }
+  if (!isStringArrayValid(editForm.value.chronicConditions)) {
+    error.value = '慢性病格式无效'
+    return
+  }
+  if (!isStringArrayValid(editForm.value.contraindications)) {
+    error.value = '用药禁忌格式无效'
+    return
+  }
+
+  if (submitting.value) return
+  submitting.value = true
+
+  try {
+    const memberId = editingProfile.value.memberId
+    await updateHealthProfile(memberId, {
+      bloodType: editForm.value.bloodType || '',
+      allergies: editForm.value.allergies,
+      chronicConditions: editForm.value.chronicConditions,
+      contraindications: editForm.value.contraindications,
+      medicalNotes: editForm.value.medicalNotes || ''
+    })
+    ElMessage.success('保存成功')
+    closeEditModal()
+    await loadProfiles()
+  } catch (err) {
+    ElMessage.error(err.message || '保存失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const addItemToEditForm = (field, value) => {
   if (!editForm.value || !value.trim()) return
+
+  error.value = ''
+
+  if (value.trim().length > TAG_MAX_LEN) {
+    error.value = `每条不能超过${TAG_MAX_LEN}个字符`
+    return
+  }
+  if (editForm.value[field].length >= TAG_MAX_ITEMS) {
+    error.value = `最多添加${TAG_MAX_ITEMS}条`
+    return
+  }
+
+  // [变量名] 计算属性名，只能用在{}中
   editForm.value = {
     ...editForm.value,
     [field]: [...editForm.value[field], value.trim()]
@@ -59,7 +147,7 @@ function addItemToEditForm(field, value) {
   else newContraindication.value = ''
 }
 
-function removeItemFromEditForm(field, index) {
+const removeItemFromEditForm = (field, index) => {
   if (!editForm.value) return
   editForm.value = {
     ...editForm.value,
@@ -67,7 +155,7 @@ function removeItemFromEditForm(field, index) {
   }
 }
 
-function profileSummary(profile) {
+const profileSummary = (profile) => {
   return (
     [
       profile.allergies.length > 0 ? `过敏: ${profile.allergies.join('、')}` : '',
@@ -78,17 +166,16 @@ function profileSummary(profile) {
   )
 }
 
-function onEditPencilClick(e, profile) {
-  e.stopPropagation()
-  openEditModal(profile)
-}
-
-function onTagKeydown(e, field, value) {
+const onTagKeydown = (e, field, value) => {
   if (e.key === 'Enter') {
     e.preventDefault()
     addItemToEditForm(field, value)
   }
 }
+
+onMounted(() => {
+  loadProfiles()
+})
 </script>
 
 <template>
@@ -104,15 +191,52 @@ function onTagKeydown(e, field, value) {
       </div>
     </div>
 
+    <div v-if="loading" class="space-y-3">
+      <div
+        v-for="i in 3"
+        :key="i"
+        class="bg-white border border-background-200 rounded-2xl overflow-hidden"
+      >
+        <div class="px-5 py-4 md:px-6 md:py-5">
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item
+                variant="rect"
+                style="width: 100%; height: 40px; border-radius: 12px"
+              />
+            </template>
+          </el-skeleton>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-else-if="profiles.length === 0"
+      class="bg-white border border-background-200 rounded-2xl px-6 py-14 text-center"
+    >
+      <div
+        class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-background-100 flex items-center justify-center"
+      >
+        <i class="ri-group-line text-2xl text-foreground-300"></i>
+      </div>
+      <p class="text-[15px] text-foreground-400 font-medium">还没有家庭成员，请先添加家庭成员</p>
+      <router-link
+        to="/dashboard/family"
+        class="inline-block text-[13px] text-primary-600 hover:text-primary-700 mt-3 font-medium cursor-pointer"
+      >
+        去添加
+      </router-link>
+    </div>
+
     <!-- Member Cards -->
-    <div class="space-y-3">
+    <div v-else class="space-y-3">
       <div
         v-for="profile in profiles"
-        :key="profile.id"
+        :key="profile.memberId"
         class="bg-white border border-background-200 rounded-2xl overflow-hidden"
       >
         <button
-          @click="toggleExpand(profile.id)"
+          @click="toggleExpand(profile.memberId)"
           class="w-full px-5 py-4 md:px-6 md:py-5 flex items-center gap-4 text-left cursor-pointer hover:bg-background-50 transition-colors"
         >
           <div
@@ -134,14 +258,14 @@ function onTagKeydown(e, field, value) {
           </div>
           <div class="flex items-center gap-1 flex-shrink-0">
             <button
-              @click="onEditPencilClick($event, profile)"
+              @click.stop="openEditModal(profile)"
               class="w-8 h-8 rounded-lg flex items-center justify-center text-foreground-300 hover:text-foreground-500 hover:bg-background-100 cursor-pointer transition-colors"
             >
               <i class="ri-pencil-line text-[14px]"></i>
             </button>
             <div
               class="w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-200"
-              :class="{ 'rotate-180': expandedId === profile.id }"
+              :class="{ 'rotate-180': expandedId === profile.memberId }"
             >
               <i class="ri-arrow-down-s-line text-foreground-300 text-[18px]"></i>
             </div>
@@ -149,7 +273,7 @@ function onTagKeydown(e, field, value) {
         </button>
 
         <div
-          v-if="expandedId === profile.id"
+          v-if="expandedId === profile.memberId"
           class="px-5 pb-5 md:px-8 md:pb-6 border-t border-background-100"
         >
           <div class="pt-5 space-y-4">
@@ -222,7 +346,7 @@ function onTagKeydown(e, field, value) {
     <div
       v-if="showEditModal && editForm"
       class="fixed inset-0 z-[998] flex items-center justify-center p-4 bg-foreground-900/30 backdrop-blur-sm"
-      @click="showEditModal = false"
+      @click="closeEditModal"
     >
       <div
         class="bg-white rounded-2xl w-full max-w-[540px] max-h-[90vh] overflow-y-auto p-6 border border-background-200"
@@ -236,13 +360,13 @@ function onTagKeydown(e, field, value) {
             </p>
           </div>
           <button
-            @click="showEditModal = false"
+            @click="closeEditModal"
             class="w-8 h-8 rounded-lg flex items-center justify-center text-foreground-400 hover:text-foreground-700 hover:bg-background-100 cursor-pointer transition-colors"
           >
             <i class="ri-close-line text-lg"></i>
           </button>
         </div>
-        <form @submit="handleSaveEdit" class="space-y-5">
+        <form @submit.prevent="handleSaveEdit" class="space-y-5">
           <!-- Blood Type -->
           <div>
             <label class="block text-[13px] font-semibold text-foreground-700 mb-2">血型</label>
@@ -374,27 +498,38 @@ function onTagKeydown(e, field, value) {
           <!-- Medical Notes -->
           <div>
             <label class="block text-[13px] font-semibold text-foreground-700 mb-2">备注</label>
-            <textarea
-              rows="3"
-              maxlength="500"
-              v-model="editForm.medicalNotes"
-              placeholder="补充其他医疗信息..."
-              class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all resize-none"
-            />
-            <p class="text-[12px] text-foreground-300 mt-1.5 text-right">最多 500 字</p>
+            <div class="relative">
+              <textarea
+                rows="3"
+                v-model="editForm.medicalNotes"
+                placeholder="补充其他医疗信息..."
+                class="w-full px-4 py-3 pb-8 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all resize-none"
+              />
+              <span
+                class="pointer-events-none absolute right-3 bottom-2.5 text-[12px] tabular-nums"
+                :class="notesLength > NOTES_MAX ? 'text-red-500' : 'text-foreground-300'"
+              >
+                {{ notesLength }}/{{ NOTES_MAX }}
+              </span>
+            </div>
           </div>
+
+          <p v-if="error" class="text-[12px] text-red-500 leading-snug">
+            {{ error }}
+          </p>
 
           <div class="flex gap-3 pt-2">
             <button
               type="button"
-              @click="showEditModal = false"
+              @click="closeEditModal"
               class="flex-1 py-3 text-[14px] text-foreground-500 bg-background-100 hover:bg-background-200 rounded-xl transition-colors cursor-pointer whitespace-nowrap font-medium"
             >
               取消
             </button>
             <button
               type="submit"
-              class="flex-1 py-3 text-[14px] text-white bg-primary-500 hover:bg-primary-600 rounded-xl transition-colors cursor-pointer whitespace-nowrap font-medium"
+              :disabled="submitting"
+              class="flex-1 py-3 text-[14px] text-white bg-primary-500 hover:bg-primary-600 rounded-xl transition-colors cursor-pointer whitespace-nowrap font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               保存
             </button>

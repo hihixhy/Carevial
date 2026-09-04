@@ -7,4 +7,5 @@ node_modules
 dist
 .eslintcache
 coverage
-tmp-preview-src
+tmp*
+tmp-preview-src*

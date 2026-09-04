@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { reminders as mockReminders, medicines, familyMembers } from '../mocks/dashboard.js'
+import ConfirmModal from '../components/ConfirmModal.vue'
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const todayDayIndex = new Date().getDay()
@@ -18,6 +19,7 @@ const selectedDay = ref(todayDayIndex)
 const showAddModal = ref(false)
 const showEditModal = ref(false)
 const editingId = ref(null)
+const deletingId = ref(null)
 
 const addForm = ref({ medicineId: '', daysOfWeek: [], time: '08:00', enabled: true })
 const addError = ref('')
@@ -91,7 +93,7 @@ function handleSaveEdit(e) {
           medicineId: editForm.value.medicineId,
           medicineName: med?.name || r.medicineName,
           familyMemberId: fm?.id || null,
-          familyMemberName: fm?.name || '我自己',
+          familyMemberName: fm?.name || '家庭公用',
           dayOfWeek: Number(editForm.value.dayOfWeek),
           time: editForm.value.time,
           enabled: editForm.value.enabled
@@ -102,9 +104,10 @@ function handleSaveEdit(e) {
   editingId.value = null
 }
 
-function handleDelete(id) {
-  if (!window.confirm('确定要删除这个提醒吗？')) return
-  localReminders.value = localReminders.value.filter((r) => r.id !== id)
+function handleDelete() {
+  if (!deletingId.value) return
+  localReminders.value = localReminders.value.filter((r) => r.id !== deletingId.value)
+  deletingId.value = null
 }
 
 function handleAdd(e) {
@@ -127,7 +130,7 @@ function handleAdd(e) {
     medicineId: addForm.value.medicineId,
     medicineName: med.name,
     familyMemberId: fm?.id || null,
-    familyMemberName: fm?.name || '我自己',
+    familyMemberName: fm?.name || '家庭公用',
     dayOfWeek: day,
     time: addForm.value.time,
     enabled: addForm.value.enabled
@@ -233,23 +236,27 @@ const selectedMedicineName = computed(
           <div
             class="absolute left-[52px] md:left-[60px] top-3 bottom-3 w-[2px] bg-background-200 rounded-full"
           />
-          <div class="space-y-0">
+          <div class="space-y-3">
             <div
-              v-for="(reminder, index) in dayReminders"
+              v-for="reminder in dayReminders"
               :key="reminder.id"
               :class="[
-                'flex items-start gap-3 md:gap-5 py-4 group',
+                'flex items-center gap-3 md:gap-5 py-4 group',
                 !reminder.enabled ? 'opacity-40' : ''
               ]"
             >
-              <div class="w-[44px] md:w-[48px] text-right flex-shrink-0 pt-1">
+              <div
+                class="w-[44px] md:w-[48px] text-right flex-shrink-0 flex items-center justify-end h-10"
+              >
                 <span
-                  class="text-[13px] md:text-[14px] font-semibold text-foreground-600 tabular-nums"
+                  class="text-[13px] md:text-[14px] font-semibold text-foreground-600 tabular-nums leading-none"
                 >
                   {{ reminder.time }}
                 </span>
               </div>
-              <div class="relative flex-shrink-0 z-10 pt-1.5">
+              <div
+                class="relative flex-shrink-0 z-10 flex items-center justify-center w-3 h-10"
+              >
                 <div
                   :class="[
                     'w-3 h-3 rounded-full ring-4 group-hover:ring-primary-50 transition-all duration-200',
@@ -257,19 +264,13 @@ const selectedMedicineName = computed(
                   ]"
                 />
               </div>
-              <div class="flex-1 min-w-0 pb-2">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="flex items-center h-10">
                     <p
-                      class="text-[14px] md:text-[15px] font-semibold text-foreground-900 leading-snug"
+                      class="text-[14px] md:text-[15px] font-semibold text-foreground-900 leading-none"
                     >
                       {{ reminder.medicineName }}
-                    </p>
-                    <p
-                      class="text-[12px] md:text-[13px] text-foreground-400 mt-1 flex items-center gap-1.5"
-                    >
-                      <i class="ri-user-line text-[12px]"></i>
-                      {{ reminder.familyMemberName }}
                     </p>
                   </div>
                   <div class="flex items-center gap-2 flex-shrink-0">
@@ -296,13 +297,12 @@ const selectedMedicineName = computed(
                     </button>
                     <button
                       class="w-8 h-8 rounded-lg flex items-center justify-center text-foreground-300 hover:text-rose-500 hover:bg-rose-50 cursor-pointer transition-colors"
-                      @click="handleDelete(reminder.id)"
+                      @click="deletingId = reminder.id"
                     >
                       <i class="ri-delete-bin-line text-[14px]"></i>
                     </button>
                   </div>
                 </div>
-                <div v-if="index !== dayReminders.length - 1" class="mt-3" />
               </div>
             </div>
           </div>
@@ -541,5 +541,14 @@ const selectedMedicineName = computed(
         </form>
       </div>
     </div>
+
+    <ConfirmModal
+      :open="deletingId !== null"
+      title="确认删除"
+      description="删除后该提醒将不再生效"
+      confirm-text="删除"
+      @close="deletingId = null"
+      @confirm="handleDelete"
+    />
   </div>
 </template>

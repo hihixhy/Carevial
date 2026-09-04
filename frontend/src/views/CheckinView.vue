@@ -132,38 +132,6 @@ function handleToggleCheckin(reminderId) {
         >
           无安排
         </p>
-        <div
-          v-if="
-            weekCheckinMap[dateStr] &&
-            weekCheckinMap[dateStr].total > 0 &&
-            weekCheckinMap[dateStr].checked >= weekCheckinMap[dateStr].total
-          "
-          :class="[
-            'mt-1.5 mx-auto w-5 h-5 rounded-full flex items-center justify-center',
-            dateStr === selectedDate ? 'bg-white/20' : 'bg-emerald-50'
-          ]"
-        >
-          <i
-            :class="[
-              'ri-check-fill text-[10px]',
-              dateStr === selectedDate ? 'text-white' : 'text-emerald-500'
-            ]"
-          ></i>
-        </div>
-        <div
-          v-else-if="weekCheckinMap[dateStr] && weekCheckinMap[dateStr].checked > 0"
-          :class="[
-            'mt-1.5 mx-auto w-5 h-5 rounded-full flex items-center justify-center',
-            dateStr === selectedDate ? 'bg-white/20' : 'bg-primary-50'
-          ]"
-        >
-          <div
-            :class="[
-              'w-2 h-2 rounded-full',
-              dateStr === selectedDate ? 'bg-white' : 'bg-primary-400'
-            ]"
-          ></div>
-        </div>
       </button>
     </div>
 
@@ -205,23 +173,27 @@ function handleToggleCheckin(reminderId) {
           <div
             class="absolute left-[52px] md:left-[60px] top-3 bottom-3 w-[2px] bg-background-200 rounded-full"
           />
-          <div class="space-y-0">
+          <div class="space-y-3">
             <div
-              v-for="(reminder, index) in dayReminders"
+              v-for="reminder in dayReminders"
               :key="reminder.id"
-              class="flex items-start gap-3 md:gap-5 py-3 group"
+              class="flex items-center gap-3 md:gap-5 py-3 group"
             >
-              <div class="w-[44px] md:w-[48px] text-right flex-shrink-0 pt-1">
+              <div
+                class="w-[44px] md:w-[48px] text-right flex-shrink-0 flex items-center justify-end h-10"
+              >
                 <span
                   :class="[
-                    'text-[13px] md:text-[14px] font-semibold tabular-nums transition-colors',
+                    'text-[13px] md:text-[14px] font-semibold tabular-nums transition-colors leading-none',
                     checkinsForSelected[reminder.id] ? 'text-foreground-300' : 'text-foreground-600'
                   ]"
                 >
                   {{ reminder.time }}
                 </span>
               </div>
-              <div class="relative flex-shrink-0 z-10 pt-1.5">
+              <div
+                class="relative flex-shrink-0 z-10 flex items-center justify-center w-3 h-10"
+              >
                 <div
                   :class="[
                     'w-3 h-3 rounded-full ring-[3px] transition-all duration-300',
@@ -231,11 +203,11 @@ function handleToggleCheckin(reminderId) {
                   ]"
                 />
               </div>
-              <div class="flex-1 min-w-0 pb-2">
-                <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-3">
                   <button
                     :class="[
-                      'flex-1 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-left transition-all duration-200 cursor-pointer border',
+                      'flex-1 rounded-xl px-3 md:px-4 h-10 text-left transition-all duration-200 cursor-pointer border flex items-center',
                       checkinsForSelected[reminder.id]
                         ? 'bg-emerald-50/60 border-emerald-100'
                         : 'bg-background-50 border-transparent hover:bg-background-100/80 hover:border-background-200'
@@ -244,19 +216,13 @@ function handleToggleCheckin(reminderId) {
                   >
                     <p
                       :class="[
-                        'text-[14px] md:text-[15px] font-semibold transition-all',
+                        'text-[14px] md:text-[15px] font-semibold transition-all leading-none',
                         checkinsForSelected[reminder.id]
                           ? 'text-foreground-400 line-through'
                           : 'text-foreground-900'
                       ]"
                     >
                       {{ reminder.medicineName }}
-                    </p>
-                    <p
-                      class="text-[12px] md:text-[13px] text-foreground-400 mt-1 flex items-center gap-1.5"
-                    >
-                      <i class="ri-user-line text-[12px]"></i>
-                      {{ reminder.familyMemberName }}
                     </p>
                   </button>
                   <button
@@ -277,7 +243,6 @@ function handleToggleCheckin(reminderId) {
                     ></i>
                   </button>
                 </div>
-                <div v-if="index !== dayReminders.length - 1" class="mt-3" />
               </div>
             </div>
           </div>
