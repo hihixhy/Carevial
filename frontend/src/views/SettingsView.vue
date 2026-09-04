@@ -2,7 +2,7 @@
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CaptchaField from '../components/CaptchaField.vue'
-import LogoutConfirmModal from '../components/layout/LogoutConfirmModal.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useUserStore } from '../stores/user'
 
 const userStore = useUserStore()
@@ -302,7 +302,7 @@ function onEmailCodeInput(e) {
             class="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0"
           >
             <span class="text-[20px] font-bold text-primary-600">
-              {{ user?.name?.charAt(0) || 'U' }}
+              {{ userStore.user?.username?.charAt(0) || 'U' }}
             </span>
           </div>
           <div class="flex-1 min-w-0">
@@ -963,8 +963,12 @@ function onEmailCodeInput(e) {
       </div>
     </div>
 
-    <LogoutConfirmModal
+    <ConfirmModal
       :open="showLogoutConfirm"
+      title="确认退出"
+      description="退出后需要重新登录才能访问数据"
+      confirm-text="退出"
+      icon="ri-logout-box-line"
       @close="showLogoutConfirm = false"
       @confirm="handleLogout"
     />

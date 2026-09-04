@@ -18,7 +18,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-function goAfterAuth() {
+const goAfterAuth = () => {
   const redirect = route.query.redirect
   if (isSafeInternalPath(redirect)) router.replace(redirect)
   else router.replace({ name: 'dashboard' })
@@ -42,7 +42,7 @@ const captchaField = ref(null)
 
 let timer = null
 
-function tick() {
+const tick = () => {
   clearTimeout(timer)
   if (countdown.value <= 0) return
   timer = setTimeout(() => {
@@ -58,7 +58,7 @@ watch(countdown, (value) => {
 
 onBeforeUnmount(() => clearTimeout(timer))
 
-function switchMode(next) {
+const switchMode = (next) => {
   mode.value = next
   loginMethod.value = 'password'
   email.value = ''
@@ -80,7 +80,11 @@ watch(
   }
 )
 
-function toggleLoginMethod() {
+watch([email, password, username, confirmPassword, code], () => {
+  error.value = ''
+})
+
+const toggleLoginMethod = () => {
   if (loginMethod.value === 'password') {
     loginMethod.value = 'code'
     password.value = ''
@@ -95,7 +99,7 @@ function toggleLoginMethod() {
   captchaReset.value += 1
 }
 
-async function requestCode() {
+const requestCode = async () => {
   error.value = ''
   if (!email.value.trim()) {
     error.value = '请先输入邮箱地址'
@@ -131,7 +135,7 @@ async function requestCode() {
   }
 }
 
-async function submitLogin() {
+const submitLogin = async () => {
   error.value = ''
   if (!email.value.trim()) {
     error.value = '请填写邮箱'
@@ -184,7 +188,7 @@ async function submitLogin() {
   }
 }
 
-async function submitRegister() {
+const submitRegister = async () => {
   error.value = ''
   if (
     !username.value.trim() ||
@@ -306,7 +310,6 @@ const submitClass =
             <i class="ri-mail-line" :class="iconClass" />
             <input
               v-model="email"
-              type="email"
               placeholder="请输入邮箱"
               autocomplete="email"
               :class="inputClass"

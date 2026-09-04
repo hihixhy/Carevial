@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LogoMark from '../LogoMark.vue'
-import LogoutConfirmModal from './LogoutConfirmModal.vue'
+import ConfirmModal from '../ConfirmModal.vue'
 import { useUserStore } from '../../stores/user'
 
 const userStore = useUserStore()
@@ -102,7 +102,10 @@ async function handleLogout() {
           </div>
         </div>
       </div>
-      <div v-else-if="user && collapsed" class="flex justify-center py-2 mb-1">
+      <div
+        v-else-if="userStore.user && collapsed"
+        class="flex justify-center py-2 mb-1"
+      >
         <div class="w-8 h-8 rounded-full bg-background-100 flex items-center justify-center">
           <i class="ri-user-line text-foreground-400 text-[14px]" />
         </div>
@@ -129,9 +132,12 @@ async function handleLogout() {
     </div>
   </aside>
 
-  <!-- Logout confirm -->
-  <LogoutConfirmModal
+  <ConfirmModal
     :open="showLogoutConfirm"
+    title="确认退出"
+    description="退出后需要重新登录才能访问数据"
+    confirm-text="退出"
+    icon="ri-logout-box-line"
     @close="showLogoutConfirm = false"
     @confirm="handleLogout"
   />
@@ -154,7 +160,10 @@ async function handleLogout() {
       </RouterLink>
     </div>
 
-    <div v-if="user" class="px-5 py-3.5 border-b border-background-100">
+    <div
+      v-if="userStore.user"
+      class="px-5 py-3.5 border-b border-background-100"
+    >
       <div class="flex items-center gap-3">
         <div
           class="w-9 h-9 rounded-full bg-background-100 flex items-center justify-center flex-shrink-0"
@@ -162,8 +171,10 @@ async function handleLogout() {
           <i class="ri-user-line text-foreground-400 text-[15px]" />
         </div>
         <div class="min-w-0">
-          <p class="text-[14px] font-medium text-foreground-800 truncate">{{ user.name }}</p>
-          <p class="text-[12px] text-foreground-400 truncate">{{ user.email }}</p>
+          <p class="text-[14px] font-medium text-foreground-800 truncate">
+            {{ userStore.user?.username }}
+          </p>
+          <p class="text-[12px] text-foreground-400 truncate">{{ userStore.user?.email }}</p>
         </div>
       </div>
     </div>

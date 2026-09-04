@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { medicines as mockMedicines, familyMembers } from '../mocks/dashboard.js'
+import ConfirmModal from '../components/ConfirmModal.vue'
 
 const categoryStyles = {
   处方药: 'bg-background-100 text-foreground-600 border-background-200',
@@ -18,6 +19,7 @@ const activeCategory = ref('全部')
 const familyFilter = ref('全部')
 const showEditModal = ref(false)
 const editingId = ref(null)
+const deletingId = ref(null)
 
 const editingMedicine = computed(() =>
   editingId.value ? localMedicines.value.find((m) => m.id === editingId.value) : null
@@ -48,7 +50,9 @@ const filtered = computed(() =>
     } else if (activeCategory.value !== '全部' && m.category !== activeCategory.value) {
       return false
     }
-    if (familyFilter.value !== '全部' && m.familyMemberName !== familyFilter.value) {
+    if (familyFilter.value === 'shared') {
+      if (m.familyMemberId) return false
+    } else if (familyFilter.value !== '全部' && m.familyMemberId !== familyFilter.value) {
       return false
     }
     if (search.value && !m.name.includes(search.value)) {
@@ -102,7 +106,7 @@ function handleSaveEdit(e) {
           name: editForm.value.name,
           category: editForm.value.category,
           familyMemberId: editForm.value.familyMemberId || null,
-          familyMemberName: fm?.name || '我自己',
+          familyMemberName: fm?.name || '家庭公用',
           indication: editForm.value.indication,
           specification: editForm.value.specification,
           dosage: editForm.value.dosage,
@@ -116,9 +120,10 @@ function handleSaveEdit(e) {
   editingId.value = null
 }
 
-function handleDelete(id) {
-  if (!window.confirm('确定要删除这个药品吗？')) return
-  localMedicines.value = localMedicines.value.filter((m) => m.id !== id)
+function handleDelete() {
+  if (!deletingId.value) return
+  localMedicines.value = localMedicines.value.filter((m) => m.id !== deletingId.value)
+  deletingId.value = null
 }
 
 function closeEditModal() {
@@ -168,8 +173,9 @@ function triggerEditPhotoInput() {
             class="appearance-none w-full sm:w-auto pl-10 pr-10 py-3 text-[14px] text-foreground-900 bg-white border border-background-200 rounded-xl focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer"
           >
             <option value="全部">全部成员</option>
-            <option v-for="fm in familyMembers" :key="fm.id" :value="fm.name">
-              {{ fm.name }} · {{ fm.relationship }}
+            <option value="shared">不指定（家庭公用）</option>
+            <option v-for="fm in familyMembers" :key="fm.id" :value="fm.id">
+              {{ fm.name }} ({{ fm.relationship }})
             </option>
           </select>
           <i
@@ -279,7 +285,7 @@ function triggerEditPhotoInput() {
               <span class="text-[13px] text-foreground-500 flex items-center gap-1.5">
                 <i
                   class="text-[13px]"
-                  :class="med.familyMemberId === 'fm-shared' ? 'ri-group-line' : 'ri-user-line'"
+                  :class="med.familyMemberId ? 'ri-user-line' : 'ri-group-line'"
                 />
                 {{ med.familyMemberName }}
               </span>
@@ -303,7 +309,7 @@ function triggerEditPhotoInput() {
             <button
               type="button"
               class="w-8 h-8 rounded-lg flex items-center justify-center text-foreground-300 hover:text-rose-500 hover:bg-rose-50 cursor-pointer transition-colors"
-              @click="handleDelete(med.id)"
+              @click="deletingId = med.id"
             >
               <i class="ri-delete-bin-line text-[14px]" />
             </button>
@@ -321,7 +327,7 @@ function triggerEditPhotoInput() {
           <button
             type="button"
             class="flex-1 py-2 text-[13px] text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-            @click="handleDelete(med.id)"
+            @click="deletingId = med.id"
           >
             <i class="ri-delete-bin-line text-[14px]" />
             删除
@@ -447,13 +453,8 @@ function triggerEditPhotoInput() {
                 v-model="editForm.familyMemberId"
                 class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer"
               >
-                <option value="">我自己</option>
-                <option value="fm-shared">家庭公用</option>
-                <option
-                  v-for="m in familyMembers.filter((fm) => fm.id !== 'fm-shared')"
-                  :key="m.id"
-                  :value="m.id"
-                >
+                <option value="">不指定（家庭公用）</option>
+                <option v-for="m in familyMembers" :key="m.id" :value="m.id">
                   {{ m.name }} ({{ m.relationship }})
                 </option>
               </select>
@@ -507,5 +508,14 @@ function triggerEditPhotoInput() {
         </form>
       </div>
     </div>
+
+    <ConfirmModal
+      :open="deletingId !== null"
+      title="确认删除"
+      description="删除后该药品的信息将无法恢复"
+      confirm-text="删除"
+      @close="deletingId = null"
+      @confirm="handleDelete"
+    />
   </div>
 </template>

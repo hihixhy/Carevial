@@ -31,4 +31,39 @@ const isCodeValid = (code) => {
   return reg.test(String(code).trim())
 }
 
-export { isEmail, isUsernameValid, isPasswordValid, isCodeValid }
+// 年龄校验（0-120岁,有值时校验）
+const isAgeValidIfPresent = (age) => {
+  if (!isNotEmpty(age)) return true
+  const num = Number(age)
+  if (isNaN(num) || !Number.isInteger(num)) return false
+  return num >= 0 && num <= 120
+}
+
+// 标签数组校验
+const isStringArrayValid = (arr, { maxItems = 20, maxLen = 50 } = {}) => {
+  if (arr == null) return true
+  if (!Array.isArray(arr)) return false
+  if (arr.length > maxItems) return false
+  for (const item of arr) {
+    if (typeof item !== 'string') return false
+    const s = item.trim()
+    if (!s || s.length > maxLen) return false
+  }
+  return true
+}
+
+// 健康档案备注校验（有值时校验）
+const isMedicalNotesValidIfPresent = (notes) => {
+  if (!isNotEmpty(notes)) return true
+  return String(notes).trim().length <= 1000
+}
+
+export {
+  isEmail,
+  isUsernameValid,
+  isPasswordValid,
+  isCodeValid,
+  isAgeValidIfPresent,
+  isStringArrayValid,
+  isMedicalNotesValidIfPresent
+}
