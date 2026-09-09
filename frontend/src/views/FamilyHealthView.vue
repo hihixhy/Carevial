@@ -2,11 +2,6 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { getHealthProfiles, updateHealthProfile } from '../api/health'
 import { isStringArrayValid, isMedicalNotesValidIfPresent } from '../utils/validate'
-import { ElMessage } from 'element-plus'
-import 'element-plus/es/components/message/style/css'
-import { ElSkeleton, ElSkeletonItem } from 'element-plus'
-import 'element-plus/es/components/skeleton/style/css'
-import 'element-plus/es/components/skeleton-item/style/css'
 
 const profiles = ref([])
 const error = ref('')
@@ -26,6 +21,10 @@ const newAllergy = ref('')
 const newCondition = ref('')
 const newContraindication = ref('')
 
+const notesLength = computed(() => {
+  return (editForm.value?.medicalNotes || '').length
+})
+
 watch(
   [editForm, newAllergy, newCondition, newContraindication],
   () => {
@@ -33,10 +32,6 @@ watch(
   },
   { deep: true }
 )
-
-const notesLength = computed(() => {
-  return (editForm.value?.medicalNotes || '').length
-})
 
 // 展开/折叠家庭成员健康档案
 const toggleExpand = (id) => {

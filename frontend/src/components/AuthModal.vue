@@ -6,8 +6,6 @@ import CaptchaField from './CaptchaField.vue'
 import { isSafeInternalPath } from '../utils/navigation'
 import { useUserStore } from '../stores'
 import { isEmail, isUsernameValid, isPasswordValid, isCodeValid } from '../utils/validate'
-import { ElMessage } from 'element-plus'
-import 'element-plus/es/components/message/style/css'
 
 const props = defineProps({
   open: { type: Boolean, default: false }
@@ -17,12 +15,6 @@ const emit = defineEmits(['close'])
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-
-const goAfterAuth = () => {
-  const redirect = route.query.redirect
-  if (isSafeInternalPath(redirect)) router.replace(redirect)
-  else router.replace({ name: 'dashboard' })
-}
 
 const mode = ref('login')
 const loginMethod = ref('password')
@@ -41,6 +33,16 @@ const captchaReset = ref(0)
 const captchaField = ref(null)
 
 let timer = null
+
+watch([email, password, username, confirmPassword, code], () => {
+  error.value = ''
+})
+
+const goAfterAuth = () => {
+  const redirect = route.query.redirect
+  if (isSafeInternalPath(redirect)) router.replace(redirect)
+  else router.replace({ name: 'dashboard' })
+}
 
 const tick = () => {
   clearTimeout(timer)
@@ -79,10 +81,6 @@ watch(
     if (open) switchMode('login')
   }
 )
-
-watch([email, password, username, confirmPassword, code], () => {
-  error.value = ''
-})
 
 const toggleLoginMethod = () => {
   if (loginMethod.value === 'password') {

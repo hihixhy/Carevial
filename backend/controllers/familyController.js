@@ -1,4 +1,5 @@
 const FamilyMember = require('../models/FamilyMember');
+const Medicine = require('../models/Medicine');
 const validate = require('../utils/validate');
 
 // 解析并校验家庭成员请求体
@@ -148,6 +149,42 @@ exports.deleteMember = async (req, res) => {
     });
   } catch (err) {
     console.error('删除家庭成员失败:', err);
+    return res.status(500).json({
+      code: 500,
+      message: '服务器错误,请稍后再试',
+      data: null
+    });
+  }
+};
+
+// 获取家庭成员关联的药品数量
+exports.getMedicineCount = async (req, res) => {
+  const { id } = req.params;
+  if (!validate.isIdValid(id)) {
+    return res.status(400).json({
+      code: 400,
+      message: '无效的家庭成员ID',
+      data: null
+    });
+  }
+
+  try {
+    const member = await FamilyMember.findById(id, req.userId);
+    if (!member) {
+      return res.status(404).json({
+        code: 404,
+        message: '家庭成员不存在或无权限访问',
+        data: null
+      });
+    }
+    const count = await Medicine.countByMember(id, req.userId);
+    return res.status(200).json({
+      code: 200,
+      message: '获取关联药品数量成功',
+      data: { count }
+    });
+  } catch (err) {
+    console.error('获取关联药品数量失败:', err);
     return res.status(500).json({
       code: 500,
       message: '服务器错误,请稍后再试',
