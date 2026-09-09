@@ -1,6 +1,8 @@
 const authRoutes = require('./authRoutes');
 const familyRoutes = require('./familyRoutes');
 const healthRoutes = require('./healthRoutes');
+const medicineRoutes = require('./medicineRoutes');
+const uploadRoutes = require('./uploadRoutes');
 
 module.exports = (app) => {
   app.get('/health', (req, res) => {
@@ -10,4 +12,6 @@ module.exports = (app) => {
   app.use('/api/auth', authRoutes);
   app.use('/api/family-members', familyRoutes);
   app.use('/api/health-profiles', healthRoutes);
+  app.use('/api/medicines', medicineRoutes);
+  app.use('/api/upload', uploadRoutes);
 };

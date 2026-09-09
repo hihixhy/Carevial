@@ -8,3 +8,5 @@ export const addFamilyMember = (data) => request.post('/family-members', data)
 export const updateFamilyMember = (id, data) => request.put(`/family-members/${id}`, data)
 // 删除家庭成员
 export const deleteFamilyMember = (id) => request.delete(`/family-members/${id}`)
+// 获取家庭成员关联的药品数量
+export const getMemberMedicineCount = (id) => request.get(`/family-members/${id}/medicine-count`)

@@ -1,3 +1,5 @@
+import { isDateStringValid } from './date'
+
 // 非空校验
 const isNotEmpty = (value) => {
   return value !== undefined && value !== null && value !== ''
@@ -58,12 +60,33 @@ const isMedicalNotesValidIfPresent = (notes) => {
   return String(notes).trim().length <= 1000
 }
 
+// 药品类型校验
+const isMedicineTypeValid = (type) => {
+  if (!isNotEmpty(type)) return false
+  return ['prescription', 'otc', 'healthcare'].includes(String(type).trim())
+}
+
+// 药品过期日期校验
+const isExpiryDateValid = (date) => {
+  return isDateStringValid(date)
+}
+
+// 可选字符串长度校验
+const isOptionalStringMax = (value, maxLen) => {
+  if (!isNotEmpty(value)) return true
+  return String(value).trim().length <= maxLen
+}
+
 export {
+  isNotEmpty,
   isEmail,
   isUsernameValid,
   isPasswordValid,
   isCodeValid,
   isAgeValidIfPresent,
   isStringArrayValid,
-  isMedicalNotesValidIfPresent
+  isMedicalNotesValidIfPresent,
+  isMedicineTypeValid,
+  isExpiryDateValid,
+  isOptionalStringMax
 }

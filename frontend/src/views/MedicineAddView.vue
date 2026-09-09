@@ -1,15 +1,70 @@
 <script setup>
-import { ref } from 'vue'
-import { familyMembers } from '../mocks/dashboard.js'
+import { ref, onMounted, watch, computed } from 'vue'
+import { getFamilyMembers } from '../api/family.js'
+import { addMedicine } from '../api/medicine.js'
+import {
+  isNotEmpty,
+  isOptionalStringMax,
+  isExpiryDateValid,
+  isMedicineTypeValid
+} from '../utils/validate'
+
+const familyMembers = ref([])
+const error = ref('')
+const submitting = ref(false)
 
 const showSuccess = ref(false)
 const photoFile = ref(null)
 const photoPreview = ref(null)
 const fileInputRef = ref(null)
 
+const addForm = ref({
+  memberId: '',
+  name: '',
+  specification: '',
+  expiryDate: '',
+  dosage: '',
+  indications: '',
+  medicineType: '',
+  remark: ''
+})
+
+const remarkLength = computed(() => {
+  return (addForm.value?.remark || '').length
+})
+
+watch(
+  addForm,
+  () => {
+    error.value = ''
+  },
+  { deep: true }
+)
+
+const loadFamilyMembers = async () => {
+  try {
+    const res = await getFamilyMembers()
+    familyMembers.value = res.data || []
+  } catch (err) {
+    ElMessage.error(err.message || '加载家庭成员失败')
+  }
+}
+
 function handlePhotoSelect(e) {
   const file = e.target.files?.[0]
   if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+  if (!allowed.includes(file.type)) {
+    ElMessage.error('请上传JPG、PNG、WEBP格式图片')
+    e.target.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过5MB')
+    e.target.value = ''
+    return
+  }
   photoFile.value = file
   const reader = new FileReader()
   reader.onload = () => {
@@ -24,14 +79,101 @@ function handleRemovePhoto() {
   if (fileInputRef.value) fileInputRef.value.value = ''
 }
 
-function handleSubmit(e) {
-  e.preventDefault()
-  showSuccess.value = true
+const resetForm = () => {
+  addForm.value = {
+    memberId: '',
+    name: '',
+    specification: '',
+    expiryDate: '',
+    dosage: '',
+    indications: '',
+    medicineType: '',
+    remark: ''
+  }
+  handleRemovePhoto()
+  error.value = ''
 }
 
-function triggerFileInput() {
+const validateForm = () => {
+  error.value = ''
+  const name = addForm.value.name.trim()
+  if (!isNotEmpty(name) || name.length > 100) {
+    error.value = '药品名称不能为空且不超过100个字符'
+    return false
+  }
+  if (!isOptionalStringMax(addForm.value.specification, 100)) {
+    error.value = '药品规格不能超过100个字符'
+    return false
+  }
+  if (!isOptionalStringMax(addForm.value.indications, 255)) {
+    error.value = '适应症不能超过255个字符'
+    return false
+  }
+  if (!isMedicineTypeValid(addForm.value.medicineType)) {
+    error.value = '请选择药品类型'
+    return false
+  }
+  if (!isOptionalStringMax(addForm.value.dosage, 200)) {
+    error.value = '用法用量不能超过200个字符'
+    return false
+  }
+  if (!isExpiryDateValid(addForm.value.expiryDate)) {
+    error.value = '有效期不能为空，且格式为YYYY-MM-DD'
+    return false
+  }
+  if (!isOptionalStringMax(addForm.value.remark, 500)) {
+    error.value = '备注不能超过500个字符'
+    return false
+  }
+  return true
+}
+
+const buildFormData = (form) => {
+  const fd = new FormData()
+  if (form.memberId !== '' && form.memberId != null) {
+    fd.append('memberId', String(form.memberId))
+  }
+  fd.append('name', form.name.trim())
+  fd.append('specification', form.specification || '')
+  fd.append('expiryDate', form.expiryDate)
+  fd.append('dosage', form.dosage || '')
+  fd.append('indications', form.indications || '')
+  fd.append('medicineType', form.medicineType)
+  fd.append('remark', form.remark || '')
+  if (photoFile.value) {
+    fd.append('file', photoFile.value)
+  }
+  return fd
+}
+
+const handleSubmit = async () => {
+  if (submitting.value) return
+  if (!validateForm()) return
+  submitting.value = true
+  try {
+    const fd = buildFormData(addForm.value)
+    await addMedicine(fd)
+    showSuccess.value = true
+    resetForm()
+  } catch (err) {
+    ElMessage.error(err.message || '添加药品失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const triggerFileInput = () => {
   fileInputRef.value?.click()
 }
+
+const handleCloseSuccessModal = () => {
+  showSuccess.value = false
+  resetForm()
+}
+
+onMounted(() => {
+  loadFamilyMembers()
+})
 </script>
 
 <template>
@@ -53,7 +195,7 @@ function triggerFileInput() {
       </div>
     </div>
 
-    <form class="bg-white rounded-2xl p-5 md:p-8 space-y-6" @submit="handleSubmit">
+    <form class="bg-white rounded-2xl p-5 md:p-8 space-y-6" @submit.prevent="handleSubmit">
       <!-- Photo Upload -->
       <div>
         <label class="block text-[13px] font-semibold text-foreground-700 mb-2">药品照片</label>
@@ -61,20 +203,20 @@ function triggerFileInput() {
           v-if="photoPreview"
           class="relative w-full h-56 rounded-xl overflow-hidden bg-background-100 border border-background-200 group/photo"
         >
-          <img :src="photoPreview" alt="药品照片" class="w-full h-full object-cover" />
+          <img :src="photoPreview" alt="药品照片" class="w-full h-full object-contain" />
           <div
             class="absolute inset-0 bg-foreground-900/0 group-hover/photo:bg-foreground-900/30 transition-colors flex items-center justify-center gap-2"
           >
             <button
               type="button"
-              class="w-9 h-9 rounded-full bg-white/80 hover:bg-white text-foreground-700 flex items-center justify-center cursor-pointer transition-all opacity-0 group-hover/photo:opacity-100"
+              class="w-9 h-9 rounded-full bg-white/80 hover:bg-white text-foreground-700 flex items-center justify-center cursor-pointer transition-all opacity-100 md:opacity-0 md:group-hover/photo:opacity-100"
               @click="triggerFileInput"
             >
               <i class="ri-refresh-line text-[16px]" />
             </button>
             <button
               type="button"
-              class="w-9 h-9 rounded-full bg-white/80 hover:bg-white text-rose-500 flex items-center justify-center cursor-pointer transition-all opacity-0 group-hover/photo:opacity-100"
+              class="w-9 h-9 rounded-full bg-white/80 hover:bg-white text-rose-500 flex items-center justify-center cursor-pointer transition-all opacity-100 md:opacity-0 md:group-hover/photo:opacity-100"
               @click="handleRemovePhoto"
             >
               <i class="ri-delete-bin-line text-[16px]" />
@@ -93,7 +235,7 @@ function triggerFileInput() {
           <div class="text-center">
             <span class="text-[13px] text-foreground-400 block">点击上传药品照片</span>
             <span class="text-[11px] text-foreground-300 mt-0.5 block"
-              >支持 JPG、PNG 格式，建议拍摄药盒正面</span
+              >支持 JPG、PNG、WEBP 格式，大小不超过5MB</span
             >
           </div>
         </button>
@@ -109,11 +251,11 @@ function triggerFileInput() {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
         <div class="sm:col-span-2">
           <label class="block text-[13px] font-semibold text-foreground-700 mb-2">
-            药品名称 <span class="text-accent-500">*</span>
+            药品名称 <span class="text-red-500 ml-0.5">*</span>
           </label>
           <input
+            v-model="addForm.name"
             type="text"
-            required
             placeholder="例如：阿莫西林胶囊"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
           />
@@ -122,6 +264,7 @@ function triggerFileInput() {
         <div class="sm:col-span-2">
           <label class="block text-[13px] font-semibold text-foreground-700 mb-2">药品规格</label>
           <input
+            v-model="addForm.specification"
             type="text"
             placeholder="例如：0.25g×24粒/盒"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
@@ -131,6 +274,7 @@ function triggerFileInput() {
         <div class="sm:col-span-2">
           <label class="block text-[13px] font-semibold text-foreground-700 mb-2">适应症</label>
           <input
+            v-model="addForm.indications"
             type="text"
             placeholder="例如：高血压、头痛发热"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
@@ -138,23 +282,27 @@ function triggerFileInput() {
         </div>
 
         <div>
-          <label class="block text-[13px] font-semibold text-foreground-700 mb-2">分类</label>
+          <label class="block text-[13px] font-semibold text-foreground-700 mb-2">
+            分类 <span class="text-red-500 ml-0.5">*</span>
+          </label>
           <select
+            v-model="addForm.medicineType"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer"
           >
             <option value="">选择分类</option>
-            <option value="处方药">处方药</option>
-            <option value="非处方药">非处方药</option>
-            <option value="保健品">保健品</option>
+            <option value="prescription">处方药</option>
+            <option value="otc">非处方药</option>
+            <option value="healthcare">保健品</option>
           </select>
         </div>
 
         <div>
           <label class="block text-[13px] font-semibold text-foreground-700 mb-2">服用人员</label>
           <select
+            v-model="addForm.memberId"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer"
           >
-            <option value="">不指定（家庭公用）</option>
+            <option value="">家庭公用</option>
             <option v-for="m in familyMembers" :key="m.id" :value="m.id">
               {{ m.name }} ({{ m.relationship }})
             </option>
@@ -164,6 +312,7 @@ function triggerFileInput() {
         <div>
           <label class="block text-[13px] font-semibold text-foreground-700 mb-2">用法用量</label>
           <input
+            v-model="addForm.dosage"
             type="text"
             placeholder="例如：一次1片，一日3次"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
@@ -171,8 +320,11 @@ function triggerFileInput() {
         </div>
 
         <div>
-          <label class="block text-[13px] font-semibold text-foreground-700 mb-2">有效期至</label>
+          <label class="block text-[13px] font-semibold text-foreground-700 mb-2">
+            有效期至 <span class="text-red-500 ml-0.5">*</span>
+          </label>
           <input
+            v-model="addForm.expiryDate"
             type="date"
             class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all cursor-pointer"
           />
@@ -180,15 +332,26 @@ function triggerFileInput() {
 
         <div class="sm:col-span-2">
           <label class="block text-[13px] font-semibold text-foreground-700 mb-2">备注</label>
-          <textarea
-            rows="3"
-            maxlength="500"
-            placeholder="特殊说明、注意事项等..."
-            class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all resize-none"
-          />
-          <p class="text-[12px] text-foreground-300 mt-1.5 text-right">最多 500 字</p>
+          <div class="relative">
+            <textarea
+              v-model="addForm.remark"
+              rows="3"
+              placeholder="特殊说明、注意事项等..."
+              class="w-full px-4 py-3 text-[14px] text-foreground-900 bg-background-50 border border-background-200 rounded-xl placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all resize-none"
+            />
+            <span
+              class="pointer-events-none absolute right-3 bottom-2.5 text-[12px] tabular-nums"
+              :class="remarkLength > 500 ? 'text-red-500' : 'text-foreground-300'"
+            >
+              {{ remarkLength }}/500
+            </span>
+          </div>
         </div>
       </div>
+
+      <p v-if="error" class="text-[12px] text-red-500 leading-snug">
+        {{ error }}
+      </p>
 
       <div class="flex gap-3 pt-2">
         <RouterLink
@@ -198,6 +361,7 @@ function triggerFileInput() {
           取消
         </RouterLink>
         <button
+          :disabled="submitting"
           type="submit"
           class="flex-1 py-3 text-[14px] text-white bg-primary-500 hover:bg-primary-600 rounded-xl transition-colors cursor-pointer whitespace-nowrap font-medium"
         >
@@ -210,7 +374,7 @@ function triggerFileInput() {
     <div
       v-if="showSuccess"
       class="fixed inset-0 z-[998] flex items-center justify-center p-4 bg-foreground-900/30 backdrop-blur-sm"
-      @click="showSuccess = false"
+      @click="handleCloseSuccessModal"
     >
       <div
         class="bg-white rounded-2xl w-full max-w-[340px] md:max-w-[380px] p-6 md:p-7 text-center shadow-xl"
@@ -227,16 +391,16 @@ function triggerFileInput() {
           <button
             type="button"
             class="flex-1 py-3 text-[14px] text-foreground-500 bg-background-100 hover:bg-background-200 rounded-xl transition-colors cursor-pointer whitespace-nowrap font-medium"
-            @click="showSuccess = false"
+            @click="handleCloseSuccessModal"
           >
             继续添加
           </button>
-          <RouterLink
+          <router-link
             to="/dashboard/medicines"
             class="flex-1 py-3 text-[14px] text-white bg-primary-500 hover:bg-primary-600 rounded-xl transition-colors text-center cursor-pointer whitespace-nowrap font-medium"
           >
             查看列表
-          </RouterLink>
+          </router-link>
         </div>
       </div>
     </div>

@@ -13,5 +13,7 @@ router.post('/', familyController.addMember);
 router.put('/:id', familyController.updateMember);
 // 删除家庭成员
 router.delete('/:id', familyController.deleteMember);
+// 获取家庭成员关联的药品数量
+router.get('/:id/medicine-count', familyController.getMedicineCount);
 
 module.exports = router;

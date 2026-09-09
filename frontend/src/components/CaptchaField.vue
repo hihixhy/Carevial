@@ -1,8 +1,6 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { getCaptcha } from '@/api/auth'
-import { ElMessage } from 'element-plus'
-import 'element-plus/es/components/message/style/css'
 
 const props = defineProps({
   resetTrigger: { type: Number, default: 0 }

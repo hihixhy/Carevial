@@ -41,13 +41,14 @@ const parseProfileBody = (body) => {
   };
 };
 
+// 获取用户健康档案列表
 exports.getProfiles = async (req, res) => {
   try {
-    const list = await HealthProfile.findByUser(req.userId);
+    const profiles = await HealthProfile.findByUser(req.userId);
     return res.status(200).json({
       code: 200,
       message: '获取健康档案列表成功',
-      data: list
+      data: profiles
     });
   } catch (err) {
     console.error('获取健康档案列表失败：', err);
@@ -59,6 +60,7 @@ exports.getProfiles = async (req, res) => {
   }
 };
 
+// 更新用户健康档案
 exports.updateProfile = async (req, res) => {
   const { memberId } = req.params;
   if (!validate.isIdValid(memberId)) {

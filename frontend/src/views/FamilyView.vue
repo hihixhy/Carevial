@@ -5,13 +5,10 @@ import {
   getFamilyMembers,
   addFamilyMember,
   updateFamilyMember,
-  deleteFamilyMember
+  deleteFamilyMember,
+  getMemberMedicineCount
 } from '../api/family'
 import { isAgeValidIfPresent } from '../utils/validate'
-import { ElMessage } from 'element-plus'
-import 'element-plus/es/components/message/style/css'
-import { ElSkeleton } from 'element-plus'
-import 'element-plus/es/components/skeleton/style/css'
 
 const members = ref([])
 const loading = ref(false)
@@ -21,6 +18,7 @@ const deletingId = ref(null)
 const submitting = ref(false)
 const deleting = ref(false)
 const error = ref('')
+const deleteDescription = ref('')
 
 const form = ref({ name: '', age: '', relationship: '' })
 
@@ -130,6 +128,26 @@ const handleSubmit = async () => {
   }
 }
 
+const openDeleteConfirm = async (member) => {
+  try {
+    const res = await getMemberMedicineCount(member.id)
+    const count = res.data?.count ?? 0
+    if (count > 0) {
+      deleteDescription.value = `删除后该成员信息与健康档案将无法恢复。其关联的 ${count} 种药品将变为家庭公用药品。`
+    } else {
+      deleteDescription.value = '删除后该成员的信息将无法恢复，其对应的健康档案也将被删除'
+    }
+    deletingId.value = member.id
+  } catch (err) {
+    ElMessage.error(err.message || '无法确认关联药品，请稍后再试')
+  }
+}
+
+const closeDeleteConfirm = () => {
+  deletingId.value = null
+  deleteDescription.value = ''
+}
+
 const handleDelete = async () => {
   if (!deletingId.value) return
   if (deleting.value) return
@@ -137,7 +155,7 @@ const handleDelete = async () => {
   try {
     await deleteFamilyMember(deletingId.value)
     ElMessage.success('删除成功')
-    deletingId.value = null
+    closeDeleteConfirm()
     await loadMembers()
   } catch (err) {
     ElMessage.error(err.message || '删除家庭成员失败')
@@ -242,7 +260,7 @@ onMounted(() => {
             </button>
             <button
               class="w-8 h-8 rounded-lg flex items-center justify-center text-foreground-300 hover:text-primary-500 hover:bg-primary-50 cursor-pointer transition-colors"
-              @click="deletingId = member.id"
+              @click="openDeleteConfirm(member)"
             >
               <i class="ri-delete-bin-line text-[14px]"></i>
             </button>
@@ -330,9 +348,9 @@ onMounted(() => {
     <ConfirmModal
       :open="deletingId !== null"
       title="确认删除"
-      description="删除后该成员的信息将无法恢复，其对应的健康档案也将被删除"
+      :description="deleteDescription"
       confirm-text="删除"
-      @close="deletingId = null"
+      @close="closeDeleteConfirm"
       @confirm="handleDelete"
     />
   </div>
