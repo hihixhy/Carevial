@@ -73,6 +73,7 @@ const getTabClass = (cat) => {
   return 'bg-white text-foreground-500 border-background-200 hover:border-background-300'
 }
 
+// opts = { showLoading: boolean } 是否显示骨架屏
 const loadMedicines = async (opts = {}) => {
   // 默认需要骨架屏
   const showLoading = opts.showLoading !== false
@@ -241,7 +242,7 @@ const handleSaveEdit = async () => {
     closeEditModal()
     await loadMedicines({ showLoading: false })
   } catch (err) {
-    ElMessage.error(err.message || '保存失败')
+    ElMessage.error(err.message || '编辑药品失败')
   } finally {
     submitting.value = false
   }
@@ -726,7 +727,7 @@ onMounted(async () => {
           </div>
 
           <p v-if="error" class="text-[12px] text-red-500 leading-snug">
-            {{ error }}
+            <i class="ri-error-warning-line"></i> {{ error }}
           </p>
 
           <div class="flex gap-3 pt-2">
@@ -752,7 +753,7 @@ onMounted(async () => {
     <ConfirmModal
       :open="deletingId !== null"
       title="确认删除"
-      description="删除后该药品的信息将无法恢复"
+      description="删除后该药品的信息将无法恢复，其关联的提醒也将被删除"
       confirm-text="删除"
       @close="deletingId = null"
       @confirm="handleDelete"

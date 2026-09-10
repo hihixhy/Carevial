@@ -5,14 +5,17 @@ import { isStringArrayValid, isMedicalNotesValidIfPresent } from '../utils/valid
 
 const profiles = ref([])
 const error = ref('')
+
 const loading = ref(false)
 const submitting = ref(false)
-const expandedId = ref(null)
 const showEditModal = ref(false)
+
+const expandedId = ref(null)
 // 健康档案的信息，不参与表单输入
 const editingProfile = ref(null)
 // 可修改的健康档案信息
 const editForm = ref(null)
+
 const NOTES_MAX = 1000
 const TAG_MAX_ITEMS = 20
 const TAG_MAX_LEN = 50
@@ -38,15 +41,17 @@ const toggleExpand = (id) => {
   expandedId.value = expandedId.value === id ? null : id
 }
 
-const loadProfiles = async () => {
-  loading.value = true
+// opts = { showLoading: boolean } 是否显示骨架屏
+const loadProfiles = async (opts = {}) => {
+  const showLoading = opts.showLoading !== false
+  if (showLoading) loading.value = true
   try {
     const res = await getHealthProfiles()
     profiles.value = res.data || []
   } catch (err) {
     ElMessage.error(err.message || '加载健康档案列表失败')
   } finally {
-    loading.value = false
+    if (showLoading) loading.value = false
   }
 }
 
@@ -110,9 +115,9 @@ const handleSaveEdit = async () => {
     })
     ElMessage.success('保存成功')
     closeEditModal()
-    await loadProfiles()
+    await loadProfiles({ showLoading: false })
   } catch (err) {
-    ElMessage.error(err.message || '保存失败')
+    ElMessage.error(err.message || '编辑健康档案失败失败')
   } finally {
     submitting.value = false
   }
@@ -510,7 +515,7 @@ onMounted(() => {
           </div>
 
           <p v-if="error" class="text-[12px] text-red-500 leading-snug">
-            {{ error }}
+            <i class="ri-error-warning-line"></i> {{ error }}
           </p>
 
           <div class="flex gap-3 pt-2">

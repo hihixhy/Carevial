@@ -1,6 +1,6 @@
 # Carevial 项目记忆（给后续 AI）
 
-> 新对话先读本文件再改代码。更新日期：**2026-09-09**。有重大决策时同步更新。  
+> 新对话先读本文件再改代码。更新日期：**2026-09-10**。有重大决策时同步更新。  
 > 对话备份：[Carevial 开发主线](0ab0c5b3-7d02-46d3-ba0b-41246392c493)（agent-transcripts）。
 
 ---
@@ -23,6 +23,7 @@
 4. 不要 Docker。本机 Redis：`D:\redis\redis-server.exe`。
 5. 只在用户要求时 commit / push。
 6. 登录后 UI 对齐最新 Readdy 预览（§5）；旧版 `13260973` / `12816190` 勿用。
+7. **一功能一会话**：做完当前功能后新开对话再开下一块（见 `.cursor/rules/one-feature-per-session.mdc`）。
 
 ---
 
@@ -67,11 +68,12 @@
 - **家庭**：`FamilyView` + `/api/family-members`。一套表单 + `editingId`。创建成员事务内插空 `health_profiles`；删成员 CASCADE 档案。有关联药时提示变「家庭公用」（依赖 `medicines.member_id ON DELETE SET NULL`）。
 - **健康档案**：`FamilyHealthView` + `/api/health-profiles`。列表 JOIN 一次拿齐；更新用 **`memberId`**。字段均可选。
 - **药品（2026-09-09 已完成）**：列表/筛选/添加/编辑/删除/详情；详情可编辑（`?edit=id` 打开列表弹窗）与删除。照片：**FormData 随药品 create/update 上传**（字段名 `file`；清空传 `clearPhoto=1`），不再走独立前端 upload API。本地 FileReader 仅预览。COS：`cosUpload` + `deleteCos`（写库成功删旧图；失败删新图）。展示用 `calcExpiryStatus(expiry_date)` **实时算**；库列 `expiry_status` 可写但不作展示依据（暂无定时刷新）。类型：`otc` / `prescription` / `health`。无库存字段。
+- **提醒（2026-09-10 已完成）**：`RemindersView` + `/api/reminders`。**一天一行**；字段名一律 **`days`**（0–6 = JS `getDay()`，0=周日）。创建传 `days` **数组**（事务 `createMany`）；编辑/开关传单个 `days`。无成员字段。列表按所选日筛选，同日内按 `time` 排。药品详情「关联提醒」：`GET /reminders/medicine/:medicineId`，前端按**周一→周日**再按时间排（`(days + 6) % 7`）。表单 `addError`/`editError` + deep `watch` 清空。删药依赖 `reminders.medicine_id ON DELETE CASCADE`。暂无重复（同药+同日+同时）校验、无推送。
 
 ### 仍用 mock / 未接
 
-- Dashboard、提醒、打卡、AI、设置改密/改邮；详情「关联提醒」仍挂 mock，等提醒模块。
-- `frontend/src/mocks/` 仍服务上述页面。
+- Dashboard、打卡、AI、设置改密/改邮。
+- `frontend/src/mocks/` 仍服务上述页面（mock 里可能仍叫 `dayOfWeek`，真 API 用 `days`）。
 
 ### UI / 其它
 
@@ -94,7 +96,7 @@ https://readdy.cc/preview/d49be038-2eba-450c-bb6c-e42ec62a8b54/13522709/family
 ### 挂载 `routes/index.js`
 
 - `GET /health`（探活，非健康档案）
-- `/api/auth`、`/api/family-members`、`/api/health-profiles`、`/api/medicines`
+- `/api/auth`、`/api/family-members`、`/api/health-profiles`、`/api/medicines`、`/api/reminders`
 - `/api/upload`：**保留**（`POST /image`），药品主路径已不依赖；以后其它模块可能用
 
 CORS：`FRONTEND_URL` + `credentials`。中间件：`middleware/auth.js` → `req.userId`。
@@ -114,9 +116,21 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 家庭：`GET /:id/medicine-count` 供删除确认文案。
 
+### 提醒 API `/api/reminders`（均需登录）
+
+| 方法 | 说明 |
+|------|------|
+| GET `/` | 当前用户全部提醒（JOIN 药名） |
+| GET `/medicine/:medicineId` | 某药提醒（须先校验药归属）；路由写在 `/:id` 类路由前 |
+| POST `/` | body：`medicineId`、`time`（`HH:mm`）、`days`（数组）、`enabled`；返回新建行数组 |
+| PUT `/:id` | body：同上但 `days` 为**单个** 0–6；改药须有权 |
+| DELETE `/:id` | 按 id + userId 删 |
+
+响应字段 camelCase：`medicineId`、`medicineName`、`time`、`days`、`enabled` 等。`enabled`：API/前端用 `true`/`false`；库 BOOLEAN→TINYINT。
+
 ### 校验（`utils/validate.js`）
 
-用户名/密码/邮箱码；`isIdValid`；年龄；血型；标签数组；药品类型与有效期 `YYYY-MM-DD`；档案备注等。前端同名逻辑对齐。
+用户名/密码/邮箱码；`isIdValid`；年龄；血型；标签数组；药品类型与有效期 `YYYY-MM-DD`；档案备注等；提醒：`isTimeValid`、`isDayValid`、`isDaysArrayValid`、`isBooleanValid`。前端同名逻辑对齐。
 
 ### 已知坑
 
@@ -125,6 +139,8 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 3. `expiry_status` 列会过时；展示勿盲信，用实时计算。
 4. 设置页改密/改邮未接。
 5. PowerShell：`cd a; npm run b`（不用 `&&`）。
+6. 提醒 `days`：**0=周日**；详情展示「周一优先」排序用 `(days + 6) % 7`，勿与 `ORDER BY days ASC`（周日在前）混淆。
+7. MySQL `TIME`：`formatTime` 优先按字符串截 `HH:mm`；若驱动返回 `Date` 需防时区偏移。
 
 ---
 
@@ -134,9 +150,10 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 |------|------|
 | `users` / `family_members` / `health_profiles` | 已用 |
 | `medicines` | **已用**（建表见 medicine-reminder README；`member_id` SET NULL） |
-| `reminders` / `medicine_logs` | 未接 |
+| `reminders` | **已用**（一天一行；`days` TINYINT 0–6；`medicine_id` CASCADE） |
+| `medicine_logs` | 未接（打卡） |
 
-邮箱码/图形码只进 Redis。不要加回「库存」除非产品要求。
+邮箱码/图形码只进 Redis。不要加回「库存」除非产品要求。参考 README 里 `days` 注释可能仍写逗号串/1–7，**本仓实现以一天一行 + 0–6 为准**。
 
 ### 环境变量
 
@@ -146,10 +163,10 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 ## 8. 下一步
 
-1. 提醒 / 打卡 / Dashboard 真实 API（**勿改路由**）。
+1. 打卡 / Dashboard 真实 API（**勿改路由**）；打卡接 `medicine_logs`，勿再依赖 mock `dayOfWeek`。
 2. 设置页改密、改邮（`purpose: change_email` + 图形码）。
 3. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
-4. 可选：`expiry_status` 定时刷新或停写该列；药品建表 SQL 收入本仓文档。
+4. 可选：提醒重复校验；推送；`expiry_status` 定时刷新或停写该列；药品建表 SQL 收入本仓文档。
 
 ---
 
@@ -169,14 +186,14 @@ AI_CONTEXT.md
 frontend/vite.config.js
 frontend/src/router/index.js          ← 勿改结构
 frontend/src/stores/user.js
-frontend/src/api/{request,auth,family,health,medicine}.js
+frontend/src/api/{request,auth,family,health,medicine,reminder}.js
 frontend/src/utils/{validate,date,medicine,navigation}.js
-frontend/src/views/{Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail}View.vue
+frontend/src/views/{Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail,Reminders}View.vue
 frontend/src/components/{AuthModal,CaptchaField,ConfirmModal}.vue
-frontend/src/mocks/                   ← 提醒/打卡/Dashboard 等
-backend/routes/{index,auth,family,health,medicine,upload}Routes.js
-backend/controllers/{auth,family,health,medicine}Controller.js
-backend/models/{User,FamilyMember,HealthProfile,Medicine}.js
+frontend/src/mocks/                   ← Dashboard / 打卡 / AI 等
+backend/routes/{index,auth,family,health,medicine,reminder,upload}Routes.js
+backend/controllers/{auth,family,health,medicine,reminder}Controller.js
+backend/models/{User,FamilyMember,HealthProfile,Medicine,Reminder}.js
 backend/middleware/auth.js
 backend/utils/{validate,date,upload,cosUpload,deleteCos,tencentCos,emailCode,mail,captcha}.js
 backend/config/{db,redis}.js

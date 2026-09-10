@@ -199,7 +199,7 @@ exports.updateMedicine = async (req, res) => {
       if (!member) {
         return res.status(404).json({
           code: 404,
-          message: '家庭成员不存在或无权限访问',
+          message: '家庭成员不存在或无权限更新',
           data: null
         });
       }

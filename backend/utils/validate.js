@@ -99,6 +99,32 @@ const isOptionalStringMax = (value, maxLen) => {
   return String(value).trim().length <= maxLen;
 };
 
+// 时间格式校验（HH:MM）
+const isTimeValid = (time) => {
+  if (!isNotEmpty(time)) return false;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(time).trim());
+};
+
+// 星期几校验（0-6）
+const isDayValid = (day) => {
+  const n = Number(day);
+  return Number.isInteger(n) && n >= 0 && n <= 6;
+};
+
+// 星期几数组校验
+const isDaysArrayValid = (days) => {
+  if (!Array.isArray(days) || days.length === 0) return false;
+  const set = new Set();
+  for (const d of days) {
+    if (!isDayValid(d)) return false;
+    set.add(Number(d));
+  }
+  return set.size === days.length; // 确保没有重复的天
+};
+
+// 布尔值校验
+const isBooleanValid = (value) => value === true || value === false;
+
 module.exports = {
   isNotEmpty,
   isEmail,
@@ -113,5 +139,9 @@ module.exports = {
   isMedicalNotesValidIfPresent,
   isMedicineTypeValid,
   isExpiryDateValid,
-  isOptionalStringMax
+  isOptionalStringMax,
+  isTimeValid,
+  isDayValid,
+  isDaysArrayValid,
+  isBooleanValid
 };

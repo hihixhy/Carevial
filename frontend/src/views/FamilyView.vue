@@ -30,15 +30,17 @@ watch(
   { deep: true }
 )
 
-const loadMembers = async () => {
-  loading.value = true
+// opts = { showLoading: boolean } 是否显示骨架屏
+const loadMembers = async (opts = {}) => {
+  const showLoading = opts.showLoading !== false
+  if (showLoading) loading.value = true
   try {
     const res = await getFamilyMembers()
     members.value = res.data || []
   } catch (err) {
     ElMessage.error(err.message || '加载家庭成员列表失败')
   } finally {
-    loading.value = false
+    if (showLoading) loading.value = false
   }
 }
 
@@ -120,9 +122,9 @@ const handleSubmit = async () => {
       ElMessage.success('添加成员成功')
     }
     closeModal()
-    await loadMembers()
+    await loadMembers({ showLoading: false })
   } catch (err) {
-    ElMessage.error(err.message || (editingId.value ? '编辑失败' : '添加失败'))
+    ElMessage.error(err.message || (editingId.value ? '编辑成员失败' : '添加成员失败'))
   } finally {
     submitting.value = false
   }
@@ -156,7 +158,7 @@ const handleDelete = async () => {
     await deleteFamilyMember(deletingId.value)
     ElMessage.success('删除成功')
     closeDeleteConfirm()
-    await loadMembers()
+    await loadMembers({ showLoading: false })
   } catch (err) {
     ElMessage.error(err.message || '删除家庭成员失败')
   } finally {
@@ -323,7 +325,7 @@ onMounted(() => {
             />
           </div>
           <p v-if="error" class="text-[12px] text-red-500 leading-snug">
-            {{ error }}
+            <i class="ri-error-warning-line"></i> {{ error }}
           </p>
           <div class="flex gap-3 pt-2">
             <button
