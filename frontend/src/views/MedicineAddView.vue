@@ -350,7 +350,7 @@ onMounted(() => {
       </div>
 
       <p v-if="error" class="text-[12px] text-red-500 leading-snug">
-        {{ error }}
+        <i class="ri-error-warning-line"></i> {{ error }}
       </p>
 
       <div class="flex gap-3 pt-2">

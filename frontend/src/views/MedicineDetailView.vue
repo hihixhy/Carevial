@@ -3,28 +3,48 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { getMedicine, deleteMedicine } from '../api/medicine.js'
+import { getRemindersByMedicine } from '../api/reminder.js'
 import { medicineTypeLabel } from '../utils/medicine.js'
 import { diffDaysFromToday } from '../utils/date.js'
-import { reminders as mockReminders } from '../mocks/dashboard.js'
 
-const weekdayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const route = useRoute()
 const router = useRouter()
+
+const weekdayLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
 const medicine = ref(null)
+const relatedReminders = ref([])
+
 const loading = ref(false)
 const showDeleteConfirm = ref(false)
 const deleting = ref(false)
 
-const relatedReminders = computed(() => {
-  if (!medicine.value) return []
-  return mockReminders.filter((r) => r.medicineId === medicine.value.id)
-})
+const loadRelatedReminders = async (medicineId) => {
+  try {
+    const res = await getRemindersByMedicine(medicineId)
+    const list = res.data || []
+    // 按周一 ~ 周日排序，如果同一天，按时间排序
+    relatedReminders.value = [...list].sort((a, b) => {
+      const dayDiff = ((a.days + 6) % 7) - ((b.days + 6) % 7)
+      if (dayDiff !== 0) return dayDiff
+      return a.time.localeCompare(b.time)
+    })
+  } catch (err) {
+    ElMessage.error(err.message || '加载关联提醒失败')
+    relatedReminders.value = []
+  }
+}
 
 const loadMedicine = async () => {
   loading.value = true
   try {
     const res = await getMedicine(route.params.id)
     medicine.value = res.data || null
+    if (medicine.value) {
+      await loadRelatedReminders(medicine.value.id)
+    } else {
+      relatedReminders.value = []
+    }
   } catch (err) {
     ElMessage.error(err.message || '加载药品详情失败')
     medicine.value = null
@@ -273,7 +293,7 @@ onMounted(() => {
           :key="r.id"
           class="inline-flex items-center gap-2 text-[13px] text-foreground-600 bg-background-50 border border-background-200 px-3 py-2 rounded-lg"
         >
-          <span class="text-foreground-400">{{ weekdayLabels[r.dayOfWeek] }}</span>
+          <span class="text-foreground-400">{{ weekdayLabels[r.days] }}</span>
           <span class="font-medium text-foreground-800">{{ r.time }}</span>
         </span>
       </div>

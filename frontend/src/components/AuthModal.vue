@@ -360,7 +360,7 @@ const submitClass =
         </div>
 
         <p v-if="error" class="mb-3 text-[12px] text-red-500 leading-snug">
-          {{ error }}
+          <i class="ri-error-warning-line"></i> {{ error }}
         </p>
 
         <button type="submit" :disabled="submitting" :class="submitClass">
@@ -477,7 +477,7 @@ const submitClass =
         </div>
 
         <p v-if="error" class="mb-3 text-[12px] text-red-500 leading-snug">
-          {{ error }}
+          <i class="ri-error-warning-line"></i> {{ error }}
         </p>
 
         <button type="submit" :disabled="submitting" :class="submitClass">

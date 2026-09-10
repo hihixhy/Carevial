@@ -64,14 +64,14 @@ exports.addMember = async (req, res) => {
     });
     return res.status(200).json({
       code: 200,
-      message: '家庭成员新增成功',
+      message: '家庭成员添加成功',
       data: {
         id,
         ...parsed.data
       }
     });
   } catch (err) {
-    console.error('新增家庭成员失败:', err);
+    console.error('添加家庭成员失败:', err);
     return res.status(500).json({
       code: 500,
       message: '服务器错误,请稍后再试',
