@@ -13,7 +13,7 @@ const input = ref('')
 // 刷新序列号，用于防止重复刷新
 let refreshSeq = 0
 
-async function refresh() {
+const refresh = async () => {
   input.value = ''
   emit('ready-change', false)
 
@@ -31,7 +31,7 @@ async function refresh() {
   }
 }
 
-function onInput(event) {
+const onInput = (event) => {
   // 只允许输入字母和数字
   const next = event.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4)
   input.value = next

@@ -70,17 +70,20 @@
 - **药品（2026-09-09 已完成）**：列表/筛选/添加/编辑/删除/详情；详情可编辑（`?edit=id` 打开列表弹窗）与删除。照片：**FormData 随药品 create/update 上传**（字段名 `file`；清空传 `clearPhoto=1`），不再走独立前端 upload API。本地 FileReader 仅预览。COS：`cosUpload` + `deleteCos`（写库成功删旧图；失败删新图）。展示用 `calcExpiryStatus(expiry_date)` **实时算**；库列 `expiry_status` 可写但不作展示依据（暂无定时刷新）。类型：`otc` / `prescription` / `health`。无库存字段。
 - **提醒（2026-09-10 已完成）**：`RemindersView` + `/api/reminders`。**一天一行**；字段名一律 **`days`**（0–6 = JS `getDay()`，0=周日）。创建传 `days` **数组**（事务 `createMany`）；编辑/开关传单个 `days`。无成员字段。列表按所选日筛选，同日内按 `time` 排。药品详情「关联提醒」：`GET /reminders/medicine/:medicineId`，前端按**周一→周日**再按时间排（`(days + 6) % 7`）。表单 `addError`/`editError` + deep `watch` 清空。删药依赖 `reminders.medicine_id ON DELETE CASCADE`。暂无重复（同药+同日+同时）校验、无推送。
 - **打卡（2026-09-11 已完成）**：`CheckinView` + `/api/medicine-logs`。横条为**今天 ±3 共 7 个日历日**（不是周一～周日周历）。列表 = 该日周几匹配的提醒（**不过滤 `enabled`**：`enabled` 只表示以后要不要通知）+ 是否已打卡。打卡 `POST`（body：`reminderId`、`logDate`），取消 `DELETE /:id`（用返回的 `logId`）。有行 = 已服、`status='taken'`；无行 = 未打卡。周条进度对 7 天各调一次 `GET ?date=`。`item.checked`（布尔）与汇总 `checkedCount`（数字）勿混名。
+- **Dashboard（2026-09-11 已完成）**：`DashboardView` **状态提升**——父组件 `Promise.all` 拉齐 `medicines` / `members` / 今日 `medicine-logs`，子组件只收 props。`StatsCards`（药品数、家人数、今日打卡、即将过期数）、`TodayMedicineTimeline`（按上午/下午/晚上分组；`emit('toggle')` → 父组件 `addLog`/`deleteLog` 再刷新）、`ExpiringAlert`（只筛 `expiryStatus === 'expiring'`，按 `diffDaysFromToday(expiryDate)` 排序；`memberName || '家庭公用'`）；`QuickActions` / `AiBanner` 纯跳转。与打卡页同源云端。日期：`utils/date.js`（dayjs + `zh-cn`：`getTodayDateStr`、`getDateLine`、`getWeekdayLabel`、`diffDaysFromToday`）。已不用 `useMedicineCheckin` / `mocks/dashboard.js`（仓库里若还在可删）。
 
 ### 仍用 mock / 未接
 
-- Dashboard（今日时间线 / 统计仍用 `useMedicineCheckin` + localStorage，**与打卡页云端不通**）、AI、设置改密/改邮。
-- `frontend/src/mocks/` 仍服务 Dashboard / AI 等（mock 里可能仍叫 `dayOfWeek`，真 API 用 `days`）。
+- AI、设置改密/改邮。
+- 设置页「清打卡」仍清 localStorage `checkin_*`，**清不了**云端 `medicine_logs`（文案待对齐）。
 
 ### UI / 其它
 
 - 布局：`AppLayout` + `Sidebar`；删除/退出用 `ConfirmModal`。
-- 列表加载：`ElSkeleton`；表单错误一行 `error` + `watch` 清空。
+- 列表加载：`ElSkeleton`；进页即请求的列表/详情页 `loading` 初值倾向 **`true`**（避免闪空态）。
+- 表单错误一行 `error` + `watch` 清空。
 - 回跳：`utils/navigation.js` → `isSafeInternalPath`。
+- 落地页滚动动画：`composables/useInView.js`（仍在用，勿删）。
 
 ---
 
@@ -177,10 +180,9 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 ## 8. 下一步
 
-1. **Dashboard** 接真提醒 + 真打卡（替换 `useMedicineCheckin` / mock；**勿改路由**）。
-2. 设置页改密、改邮（`purpose: change_email` + 图形码）；清缓存文案与云端打卡对齐。
-3. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
-4. 可选：提醒重复校验；推送（才真正用到 `enabled`）；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx；药品建表 SQL 收入本仓文档。
+1. 设置页改密、改邮（`purpose: change_email` + 图形码）；清缓存文案与云端打卡对齐；可删无用 `mocks/dashboard.js`、`useMedicineCheckin.js`。
+2. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
+3. 可选：提醒重复校验；推送（才真正用到 `enabled`）；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx；药品建表 SQL 收入本仓文档；Dashboard Stats 无安排时显示 `-` 而非 `0/0`。
 
 ---
 
@@ -202,10 +204,12 @@ frontend/src/router/index.js          ← 勿改结构
 frontend/src/stores/user.js
 frontend/src/api/{request,auth,family,health,medicine,reminder,medicineLog}.js
 frontend/src/utils/{validate,date,medicine,navigation}.js
-frontend/src/views/{Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail,Reminders,Checkin}View.vue
-frontend/src/composables/useMedicineCheckin.js   ← Dashboard 仍用 localStorage；待接真 API
+frontend/src/views/{Dashboard,Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail,Reminders,Checkin}View.vue
+frontend/src/components/home/{StatsCards,TodayMedicineTimeline,ExpiringAlert,QuickActions,AiBanner}.vue
+frontend/src/composables/useInView.js            ← Landing / Feedback 入场；保留
+frontend/src/composables/useMedicineCheckin.js   ← 已无引用，可删
 frontend/src/components/{AuthModal,CaptchaField,ConfirmModal}.vue
-frontend/src/mocks/                   ← Dashboard / AI 等
+frontend/src/mocks/dashboard.js                 ← 已无引用，可删
 backend/routes/{index,auth,family,health,medicine,reminder,medicineLog,upload}Routes.js
 backend/controllers/{auth,family,health,medicine,reminder,medicineLog}Controller.js
 backend/models/{User,FamilyMember,HealthProfile,Medicine,Reminder,MedicineLog}.js

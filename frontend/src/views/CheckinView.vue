@@ -22,7 +22,7 @@ const todayDateStr = daysInWeek.find((d) => d.isToday)?.dateStr || daysInWeek[3]
 // 默认选中今天
 const selectedDate = ref(todayDateStr)
 
-const loading = ref(false)
+const loading = ref(true)
 const togglingId = ref(null) // 防止连点
 
 const dayItems = ref([])
