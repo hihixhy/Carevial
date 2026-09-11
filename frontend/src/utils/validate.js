@@ -75,8 +75,8 @@ const isMedicineTypeValid = (type) => {
   return ['prescription', 'otc', 'healthcare'].includes(String(type).trim())
 }
 
-// 药品过期日期校验
-const isExpiryDateValid = (date) => {
+// 药品过期日期、打卡归属日期校验
+const isDateValid = (date) => {
   return isDateStringValid(date)
 }
 
@@ -123,7 +123,7 @@ export {
   isStringArrayValid,
   isMedicalNotesValidIfPresent,
   isMedicineTypeValid,
-  isExpiryDateValid,
+  isDateValid,
   isOptionalStringMax,
   isTimeValid,
   isDayValid,
