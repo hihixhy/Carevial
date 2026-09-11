@@ -29,7 +29,7 @@ const parseMedicineBody = (body) => {
   if (!validate.isOptionalStringMax(specification, 100)) {
     return { ok: false, message: '药品规格不能超过100个字符' };
   }
-  if (!validate.isExpiryDateValid(expiryDate)) {
+  if (!validate.isDateValid(expiryDate)) {
     return { ok: false, message: '有效期不能为空，且格式为YYYY-MM-DD' };
   }
   if (!validate.isOptionalStringMax(dosage, 200)) {

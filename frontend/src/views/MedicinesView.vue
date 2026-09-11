@@ -9,7 +9,7 @@ import { diffDaysFromToday } from '../utils/date.js'
 import {
   isNotEmpty,
   isMedicineTypeValid,
-  isExpiryDateValid,
+  isDateValid,
   isOptionalStringMax
 } from '../utils/validate.js'
 
@@ -199,7 +199,7 @@ const validateForm = () => {
     error.value = '用法用量不能超过200个字符'
     return false
   }
-  if (!isExpiryDateValid(editForm.value.expiryDate)) {
+  if (!isDateValid(editForm.value.expiryDate)) {
     error.value = '有效期不能为空，且格式为YYYY-MM-DD'
     return false
   }

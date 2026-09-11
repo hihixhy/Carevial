@@ -5,7 +5,7 @@ import { addMedicine } from '../api/medicine.js'
 import {
   isNotEmpty,
   isOptionalStringMax,
-  isExpiryDateValid,
+  isDateValid,
   isMedicineTypeValid
 } from '../utils/validate'
 
@@ -117,7 +117,7 @@ const validateForm = () => {
     error.value = '用法用量不能超过200个字符'
     return false
   }
-  if (!isExpiryDateValid(addForm.value.expiryDate)) {
+  if (!isDateValid(addForm.value.expiryDate)) {
     error.value = '有效期不能为空，且格式为YYYY-MM-DD'
     return false
   }

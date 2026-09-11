@@ -14,11 +14,11 @@ const homeTo = computed(() => (userStore.isAuthenticated ? '/dashboard' : '/'))
     </div>
     <h1 class="text-[48px] font-bold text-foreground-900 tracking-tighter leading-none">404</h1>
     <p class="text-[16px] text-foreground-400 mt-4 font-medium">这个页面不存在</p>
-    <RouterLink
+    <router-link
       :to="homeTo"
       class="mt-8 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white text-[14px] font-semibold rounded-xl transition-colors cursor-pointer"
     >
       返回首页
-    </RouterLink>
+    </router-link>
   </div>
 </template>

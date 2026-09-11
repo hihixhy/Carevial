@@ -4,6 +4,7 @@ const healthRoutes = require('./healthRoutes');
 const medicineRoutes = require('./medicineRoutes');
 const uploadRoutes = require('./uploadRoutes');
 const reminderRoutes = require('./reminderRoutes');
+const medicineLogRoutes = require('./medicineLogRoutes');
 
 module.exports = (app) => {
   app.get('/health', (req, res) => {
@@ -16,4 +17,5 @@ module.exports = (app) => {
   app.use('/api/medicines', medicineRoutes);
   app.use('/api/upload', uploadRoutes);
   app.use('/api/reminders', reminderRoutes);
+  app.use('/api/medicine-logs', medicineLogRoutes);
 };
