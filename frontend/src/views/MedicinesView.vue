@@ -18,7 +18,7 @@ const router = useRouter()
 
 const medicines = ref([])
 const familyMembers = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const submitting = ref(false)
 const deleting = ref(false)
 const error = ref('')

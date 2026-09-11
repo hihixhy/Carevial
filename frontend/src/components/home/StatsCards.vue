@@ -1,24 +1,33 @@
 <script setup>
 import { computed } from 'vue'
-import { medicines, familyMembers, reminders, expiringMedicines } from '../../mocks/dashboard.js'
-import { useMedicineCheckin } from '../../composables/useMedicineCheckin.js'
 
-const todayDayOfWeek = new Date().getDay()
-const todayTotal = reminders.filter((r) => r.dayOfWeek === todayDayOfWeek && r.enabled).length
-const { checkedCount } = useMedicineCheckin()
+const props = defineProps({
+  medicines: { type: Array, required: true },
+  members: { type: Array, required: true },
+  checkedCount: { type: Number, required: true },
+  total: { type: Number, required: true }
+})
+const expiringCount = computed(
+  () => props.medicines.filter((m) => m.expiryStatus === 'expiring').length
+)
 
 const stats = computed(() => [
-  { label: '药品', value: medicines.length, icon: 'ri-capsule-line', color: 'text-emerald-600' },
-  { label: '家人', value: familyMembers.length, icon: 'ri-group-line', color: 'text-amber-600' },
+  {
+    label: '药品',
+    value: props.medicines.length,
+    icon: 'ri-capsule-line',
+    color: 'text-emerald-600'
+  },
+  { label: '家人', value: props.members.length, icon: 'ri-group-line', color: 'text-amber-600' },
   {
     label: '今日打卡',
-    value: todayTotal > 0 ? `${checkedCount.value}/${todayTotal}` : '-',
+    value: props.total > 0 ? `${props.checkedCount}/${props.total}` : '0/0',
     icon: 'ri-check-double-line',
     color: 'text-teal-600'
   },
   {
     label: '即将过期',
-    value: expiringMedicines.length,
+    value: expiringCount.value,
     icon: 'ri-error-warning-line',
     color: 'text-rose-500'
   }

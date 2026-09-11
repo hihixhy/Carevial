@@ -1,4 +1,6 @@
 import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
+dayjs.locale('zh-cn')
 
 // 获取今天零点时间
 const today = () => dayjs().startOf('day')
@@ -17,4 +19,21 @@ const isDateStringValid = (value) => {
   return d.isValid() && d.format('YYYY-MM-DD') === s
 }
 
-export { dayjs, today, diffDaysFromToday, isDateStringValid }
+// 获取M月D日 星期x格式文字
+const getDateLine = () => dayjs().format('M月D日 dddd')
+
+// 获取今天日期字符串 YYYY-MM-DD
+const getTodayDateStr = () => dayjs().format('YYYY-MM-DD')
+
+// 获取星期几中文标签
+const getWeekdayLabel = () => dayjs().format('dddd')
+
+export {
+  dayjs,
+  today,
+  diffDaysFromToday,
+  isDateStringValid,
+  getDateLine,
+  getTodayDateStr,
+  getWeekdayLabel
+}

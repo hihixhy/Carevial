@@ -15,7 +15,7 @@ const weekdayLabels = ['周日', '周一', '周二', '周三', '周四', '周五
 const medicine = ref(null)
 const relatedReminders = ref([])
 
-const loading = ref(false)
+const loading = ref(true)
 const showDeleteConfirm = ref(false)
 const deleting = ref(false)
 

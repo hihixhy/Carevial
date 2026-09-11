@@ -20,7 +20,7 @@ const DAY_PRESETS = [
 const reminders = ref([])
 const medicines = ref([])
 
-const loading = ref(false)
+const loading = ref(true)
 const submitting = ref(false)
 const deleting = ref(false)
 const selectedDay = ref(todayDayIndex)

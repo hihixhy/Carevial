@@ -1,21 +1,25 @@
 <script setup>
-import { expiringMedicines } from '../../mocks/dashboard.js'
+import { computed } from 'vue'
+import { diffDaysFromToday } from '../../utils/date'
 
-function getDaysUntilExpiry(dateStr) {
-  const expiry = new Date(dateStr)
-  const now = new Date()
-  return Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-}
+const props = defineProps({
+  medicines: { type: Array, required: true }
+})
 
-const sorted =
-  expiringMedicines.length === 0
-    ? []
-    : [...expiringMedicines].sort((a, b) => {
-        return getDaysUntilExpiry(a.expirationDate) - getDaysUntilExpiry(b.expirationDate)
-      })
-
-const hasUrgent = sorted.some((m) => getDaysUntilExpiry(m.expirationDate) <= 7)
-const urgentCount = sorted.filter((m) => getDaysUntilExpiry(m.expirationDate) <= 7).length
+const expiringMedicines = computed(() => {
+  return props.medicines.filter((m) => m.expiryStatus === 'expiring')
+})
+// 浅拷贝，避免修改原数组 按剩余天数排序
+const sorted = computed(() =>
+  [...expiringMedicines.value].sort(
+    (a, b) => diffDaysFromToday(a.expiryDate) - diffDaysFromToday(b.expiryDate)
+  )
+)
+// 7天内过期为紧急状态
+const hasUrgent = computed(() => sorted.value.some((m) => diffDaysFromToday(m.expiryDate) <= 7))
+const urgentCount = computed(
+  () => sorted.value.filter((m) => diffDaysFromToday(m.expiryDate) <= 7).length
+)
 </script>
 
 <template>
@@ -29,7 +33,7 @@ const urgentCount = sorted.filter((m) => getDaysUntilExpiry(m.expirationDate) <=
     <div class="flex items-center gap-2 mb-3">
       <span v-if="hasUrgent" class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
       <p class="text-[11px] font-bold text-foreground-400 tracking-wider uppercase">
-        {{ hasUrgent ? '⚠ 过期提醒' : '过期提醒' }}
+        {{ hasUrgent ? '⚠ 即将过期提醒' : '即将过期提醒' }}
       </p>
       <span
         v-if="hasUrgent"
@@ -45,13 +49,13 @@ const urgentCount = sorted.filter((m) => getDaysUntilExpiry(m.expirationDate) <=
     </div>
 
     <div class="space-y-1.5">
-      <RouterLink
+      <router-link
         v-for="med in sorted"
         :key="med.id"
         :to="`/dashboard/medicines`"
         :class="[
           'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors cursor-pointer',
-          getDaysUntilExpiry(med.expirationDate) <= 7
+          diffDaysFromToday(med.expiryDate) <= 7
             ? 'hover:bg-rose-100/60'
             : 'hover:bg-background-100'
         ]"
@@ -59,11 +63,7 @@ const urgentCount = sorted.filter((m) => getDaysUntilExpiry(m.expirationDate) <=
         <div
           :class="[
             'w-2 h-2 rounded-full flex-shrink-0',
-            getDaysUntilExpiry(med.expirationDate) <= 0
-              ? 'bg-rose-500'
-              : getDaysUntilExpiry(med.expirationDate) <= 7
-                ? 'bg-rose-400'
-                : 'bg-amber-400'
+            diffDaysFromToday(med.expiryDate) <= 7 ? 'bg-rose-400' : 'bg-amber-400'
           ]"
         />
 
@@ -72,27 +72,21 @@ const urgentCount = sorted.filter((m) => getDaysUntilExpiry(m.expirationDate) <=
             {{ med.name }}
           </p>
           <p class="text-[11px] text-foreground-400 truncate">
-            {{ med.familyMemberName }}
+            {{ med.memberName || '家庭公用' }}
           </p>
         </div>
 
         <div
           :class="[
             'flex-shrink-0 text-[12px] font-bold px-2.5 py-1 rounded-full',
-            getDaysUntilExpiry(med.expirationDate) <= 0
-              ? 'bg-rose-500 text-white'
-              : getDaysUntilExpiry(med.expirationDate) <= 7
-                ? 'bg-rose-100 text-rose-700'
-                : 'bg-amber-50 text-amber-700'
+            diffDaysFromToday(med.expiryDate) <= 7
+              ? 'bg-rose-100 text-rose-700'
+              : 'bg-amber-50 text-amber-700'
           ]"
         >
-          {{
-            getDaysUntilExpiry(med.expirationDate) <= 0
-              ? '已过期'
-              : `${getDaysUntilExpiry(med.expirationDate)} 天`
-          }}
+          {{ `${diffDaysFromToday(med.expiryDate)} 天` }}
         </div>
-      </RouterLink>
+      </router-link>
     </div>
 
     <p class="text-[11px] text-foreground-300 mt-3 text-center">点击查看药品详情</p>

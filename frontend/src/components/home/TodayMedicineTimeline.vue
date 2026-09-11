@@ -1,6 +1,16 @@
 <script setup>
-import { todayReminders } from '../../mocks/dashboard.js'
-import { useMedicineCheckin } from '../../composables/useMedicineCheckin.js'
+import { computed } from 'vue'
+import { getWeekdayLabel } from '../../utils/date'
+
+const props = defineProps({
+  items: { type: Array, required: true },
+  checkedCount: { type: Number, required: true },
+  total: { type: Number, required: true },
+  loading: { type: Boolean, required: true },
+  togglingId: { type: [Number, null], default: null }
+})
+
+const emit = defineEmits(['toggle'])
 
 const timeGroups = [
   {
@@ -28,35 +38,61 @@ const timeGroups = [
     fg: 'text-indigo-400'
   }
 ]
+// 获取今日星期几标签
+const weekdayLabel = getWeekdayLabel()
 
-const { isCheckedIn, toggleCheckin, checkedCount } = useMedicineCheckin()
-
-const sorted = [...todayReminders].sort((a, b) => a.time.localeCompare(b.time))
-const total = sorted.length
-
-const grouped = timeGroups
-  .map((group) => ({
-    ...group,
-    items: sorted.filter((r) => r.time >= group.start && r.time < group.end)
-  }))
-  .filter((g) => g.items.length > 0)
-
-const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
+// 给今日提醒按时间段分组
+const grouped = computed(() => {
+  const sorted = [...props.items].sort((a, b) => a.time.localeCompare(b.time))
+  return timeGroups
+    .map((g) => ({
+      ...g,
+      items: sorted.filter((r) => r.time >= g.start && r.time < g.end)
+    }))
+    .filter((g) => g.items.length > 0)
+})
 </script>
 
 <template>
+  <div v-if="loading" class="bg-white border border-background-200 rounded-2xl overflow-hidden">
+    <div class="px-4 md:px-6 py-4 md:py-5">
+      <h2 class="text-[16px] md:text-[18px] font-semibold text-foreground-900 tracking-tight">
+        今日安排
+      </h2>
+    </div>
+    <div class="px-4 md:px-6 pb-4 md:pb-6">
+      <el-skeleton animated>
+        <template #template>
+          <div class="space-y-3">
+            <div v-for="i in 3" :key="i" class="flex items-center gap-3 md:gap-4 py-3">
+              <el-skeleton-item variant="text" style="width: 36px; height: 14px" />
+              <el-skeleton-item variant="circle" style="width: 12px; height: 12px" />
+              <el-skeleton-item
+                variant="rect"
+                class="flex-1"
+                style="height: 40px; border-radius: 12px"
+              />
+              <el-skeleton-item
+                variant="rect"
+                style="width: 32px; height: 32px; border-radius: 12px"
+              />
+            </div>
+          </div>
+        </template>
+      </el-skeleton>
+    </div>
+  </div>
+
   <div
-    v-if="todayReminders.length === 0"
+    v-else-if="items.length === 0"
     class="bg-white border border-background-200 rounded-2xl p-8 md:p-12 text-center"
   >
-    <p class="text-[36px] md:text-[48px] mb-3 text-foreground-200">☕</p>
-    <p class="text-[14px] md:text-[16px] text-foreground-400 font-medium">今天没有用药安排</p>
-    <RouterLink
-      to="/dashboard/medicines/add"
-      class="text-[13px] md:text-[14px] text-primary-600 hover:text-primary-700 mt-3 inline-block font-semibold cursor-pointer"
+    <div
+      class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-background-100 flex items-center justify-center"
     >
-      添加药品
-    </RouterLink>
+      <i class="ri-calendar-check-line text-2xl text-foreground-300"></i>
+    </div>
+    <p class="text-[15px] text-foreground-400 font-medium">今天没有用药安排</p>
   </div>
 
   <div v-else class="bg-white border border-background-200 rounded-2xl overflow-hidden">
@@ -108,8 +144,8 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
 
             <div class="space-y-0">
               <div
-                v-for="reminder in group.items"
-                :key="reminder.id"
+                v-for="item in group.items"
+                :key="item.reminderId"
                 class="flex items-center gap-3 md:gap-4 py-3 group"
               >
                 <div
@@ -118,10 +154,10 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                   <span
                     :class="[
                       'text-[13px] md:text-[14px] font-bold tabular-nums transition-colors leading-none',
-                      isCheckedIn(reminder.id) ? 'text-foreground-300' : 'text-foreground-500'
+                      item.checked ? 'text-foreground-300' : 'text-foreground-500'
                     ]"
                   >
-                    {{ reminder.time }}
+                    {{ item.time }}
                   </span>
                 </div>
 
@@ -129,7 +165,7 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                   <div
                     :class="[
                       'w-3 h-3 rounded-full ring-[3px] transition-all duration-300',
-                      isCheckedIn(reminder.id)
+                      item.checked
                         ? 'bg-emerald-400 ring-emerald-50'
                         : 'bg-primary-400 ring-white group-hover:ring-primary-50'
                     ]"
@@ -142,38 +178,36 @@ const weekdayLabel = new Date().toLocaleDateString('zh-CN', { weekday: 'long' })
                       type="button"
                       :class="[
                         'rounded-xl px-3 md:px-4 h-10 flex-1 text-left transition-all duration-200 cursor-pointer border flex items-center',
-                        isCheckedIn(reminder.id)
+                        item.checked
                           ? 'bg-emerald-50/60 border-emerald-100'
                           : 'bg-background-50 border-transparent hover:bg-background-100/80 hover:border-background-200'
                       ]"
-                      @click="toggleCheckin(reminder.id)"
+                      @click="emit('toggle', item)"
                     >
                       <p
                         :class="[
                           'text-[14px] md:text-[15px] font-semibold transition-all leading-none',
-                          isCheckedIn(reminder.id)
-                            ? 'text-foreground-400 line-through'
-                            : 'text-foreground-900'
+                          item.checked ? 'text-foreground-400 line-through' : 'text-foreground-900'
                         ]"
                       >
-                        {{ reminder.medicineName }}
+                        {{ item.medicineName }}
                       </p>
                     </button>
                     <button
                       type="button"
                       :class="[
                         'w-8 h-8 md:w-9 md:h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0',
-                        isCheckedIn(reminder.id)
+                        item.checked
                           ? 'bg-emerald-500 text-white'
                           : 'text-foreground-300 hover:text-primary-600 hover:bg-primary-50'
                       ]"
-                      :title="isCheckedIn(reminder.id) ? '取消打卡' : '打卡'"
-                      @click="toggleCheckin(reminder.id)"
+                      :title="item.checked ? '取消打卡' : '打卡'"
+                      @click="emit('toggle', item)"
                     >
                       <i
                         :class="[
                           'text-[15px] md:text-[16px]',
-                          isCheckedIn(reminder.id) ? 'ri-check-fill' : 'ri-check-line'
+                          item.checked ? 'ri-check-fill' : 'ri-check-line'
                         ]"
                       />
                     </button>

@@ -6,7 +6,7 @@ import { isStringArrayValid, isMedicalNotesValidIfPresent } from '../utils/valid
 const profiles = ref([])
 const error = ref('')
 
-const loading = ref(false)
+const loading = ref(true)
 const submitting = ref(false)
 const showEditModal = ref(false)
 

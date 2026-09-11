@@ -11,7 +11,7 @@ import {
 import { isAgeValidIfPresent } from '../utils/validate'
 
 const members = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const showModal = ref(false)
 const editingId = ref(null)
 const deletingId = ref(null)
