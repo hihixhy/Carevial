@@ -3,71 +3,65 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CaptchaField from '../components/CaptchaField.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import { useUserStore } from '../stores/user'
+import { isEmail, isUsernameValid, isPasswordValid, isCodeValid } from '../utils/validate'
 
 const userStore = useUserStore()
-
-const AUTH_STORAGE_KEY = 'yaoguanjia_auth'
-const SETTINGS_STORAGE_KEY = 'yaoguanjia_settings'
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {
-    // ignore parse error
-  }
-  return {
-    notificationEnabled: true,
-    soundEnabled: true,
-    vibrationEnabled: false,
-    reminderBeforeMinutes: 5,
-    language: 'zh',
-    timeFormat: '24h',
-    weekStartsOn: '1'
-  }
-}
-
-function saveSettings(s) {
-  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(s))
-}
-
 const router = useRouter()
 
-const settings = ref(loadSettings())
 const displayName = ref(userStore.user?.username || '')
+const pwdError = ref('')
+const emailError = ref('')
+
+// 修改用户名
 const nameEditing = ref(false)
-const nameSaved = ref(false)
+const nameSaving = ref(false)
+const settingsSaving = ref(false)
 
 const showLogoutConfirm = ref(false)
 
+// 修改密码
 const showPasswordModal = ref(false)
 const oldPassword = ref('')
 const newPassword = ref('')
 const pwdConfirm = ref('')
-const pwdError = ref('')
 const pwdSuccess = ref(false)
 const pwdSubmitting = ref(false)
-const pwdShowOld = ref(false)
-const pwdShowNew = ref(false)
-const pwdShowConfirm = ref(false)
 
+// 修改邮箱
 const showEmailModal = ref(false)
 const newEmail = ref('')
 const emailCode = ref('')
 const emailPwd = ref('')
-const emailError = ref('')
 const emailSuccess = ref(false)
 const emailSubmitting = ref(false)
+// 是否已发送验证码
 const emailCodeSent = ref(false)
+// 验证码倒计时
 const emailCodeCountdown = ref(0)
+// 图形验证码是否完成
 const emailCaptchaReady = ref(false)
+// 图形验证码重置计数，用于触发 CaptchaField 重置
 const emailCaptchaReset = ref(0)
+const emailCaptchaRef = ref(null)
+const emailSendingCode = ref(false)
+
+// 上传头像
+const avatarInputRef = ref(null)
+const avatarUploading = ref(false)
 
 let countdownTimer = null
-let nameSavedTimer = null
 let pwdSuccessTimer = null
 let emailSuccessTimer = null
+
+// 如果在编辑，不改用户名
+watch(
+  () => userStore.user?.username,
+  (name) => {
+    if (!nameEditing.value) displayName.value = name || ''
+  }
+)
 
 watch(emailCodeCountdown, (c) => {
   clearTimeout(countdownTimer)
@@ -79,24 +73,136 @@ watch(emailCodeCountdown, (c) => {
 
 onBeforeUnmount(() => {
   clearTimeout(countdownTimer)
-  clearTimeout(nameSavedTimer)
   clearTimeout(pwdSuccessTimer)
   clearTimeout(emailSuccessTimer)
 })
 
-function resetPwdModal() {
+// 保存用户名
+const handleSaveName = async () => {
+  const username = displayName.value.trim()
+  if (!username) {
+    ElMessage.error('用户名不能为空')
+    return
+  }
+  if (!isUsernameValid(username)) {
+    ElMessage.error('用户名长度需在1-10位之间')
+    return
+  }
+  if (nameSaving.value) return
+  nameSaving.value = true
+  try {
+    await userStore.updateUserProfile({ username })
+    nameEditing.value = false
+    ElMessage.success('保存成功')
+  } catch (err) {
+    ElMessage.error(err.message || '保存失败')
+  } finally {
+    nameSaving.value = false
+  }
+}
+
+const cancelNameEdit = () => {
+  nameEditing.value = false
+  displayName.value = userStore.user?.username || ''
+}
+
+const onNameKeydown = (e) => {
+  if (e.key === 'Enter') handleSaveName()
+  if (e.key === 'Escape') cancelNameEdit()
+}
+
+// 保存通知设置
+const saveSettings = async (patch) => {
+  const u = userStore.user
+  if (!u || settingsSaving.value) return
+
+  const payload = {
+    notificationEnabled: u.notificationEnabled,
+    soundEnabled: u.soundEnabled,
+    reminderBeforeMinutes: u.reminderBeforeMinutes,
+    ...patch
+  }
+
+  settingsSaving.value = true
+  try {
+    await userStore.updateUserSettings(payload)
+  } catch (err) {
+    ElMessage.error(err.message || '保存失败')
+  } finally {
+    settingsSaving.value = false
+  }
+}
+
+const toggle = (key) => {
+  const u = userStore.user
+  if (!u) return
+  if (key === 'soundEnabled' && !u.notificationEnabled) return
+  saveSettings({ [key]: !u[key] })
+}
+
+const onReminderChange = (e) => {
+  saveSettings({ reminderBeforeMinutes: Number(e.target.value) })
+}
+
+const resetPwdModal = () => {
   oldPassword.value = ''
   newPassword.value = ''
   pwdConfirm.value = ''
   pwdError.value = ''
   pwdSuccess.value = false
   pwdSubmitting.value = false
-  pwdShowOld.value = false
-  pwdShowNew.value = false
-  pwdShowConfirm.value = false
 }
 
-function resetEmailModal() {
+const openPasswordModal = () => {
+  resetPwdModal()
+  showPasswordModal.value = true
+}
+
+const closePasswordModal = () => {
+  showPasswordModal.value = false
+  resetPwdModal()
+}
+
+// 修改密码
+const handleChangePassword = async () => {
+  pwdError.value = ''
+  if (!oldPassword.value || !newPassword.value || !pwdConfirm.value) {
+    pwdError.value = '请填写所有字段'
+    return
+  }
+  if (!isPasswordValid(newPassword.value)) {
+    pwdError.value = '密码需6-12位，且包含大小写字母和数字'
+    return
+  }
+  if (newPassword.value !== pwdConfirm.value) {
+    pwdError.value = '两次输入的新密码不一致'
+    return
+  }
+  if (oldPassword.value === newPassword.value) {
+    pwdError.value = '新密码不能与旧密码相同'
+    return
+  }
+  if (pwdSubmitting.value) return
+  pwdSubmitting.value = true
+  try {
+    await userStore.changeUserPassword({
+      oldPassword: oldPassword.value,
+      newPassword: newPassword.value,
+      confirmPassword: pwdConfirm.value
+    })
+    pwdSuccess.value = true
+    clearTimeout(pwdSuccessTimer)
+    pwdSuccessTimer = setTimeout(() => {
+      closePasswordModal()
+    }, 1500)
+  } catch (err) {
+    ElMessage.error(err.message || '修改密码失败，请重试')
+  } finally {
+    pwdSubmitting.value = false
+  }
+}
+
+const resetEmailModal = () => {
   newEmail.value = ''
   emailCode.value = ''
   emailPwd.value = ''
@@ -109,173 +215,132 @@ function resetEmailModal() {
   emailCaptchaReset.value += 1
 }
 
-function update(patch) {
-  settings.value = { ...settings.value, ...patch }
-  saveSettings(settings.value)
-}
-
-function handleSaveName() {
-  if (!displayName.value.trim()) return
-  try {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      parsed.name = displayName.value.trim()
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed))
-    }
-  } catch {
-    // ignore parse error
-  }
-  nameEditing.value = false
-  nameSaved.value = true
-  clearTimeout(nameSavedTimer)
-  nameSavedTimer = setTimeout(() => {
-    nameSaved.value = false
-  }, 2000)
-}
-
-function toggle(key) {
-  if (typeof settings.value[key] === 'boolean') {
-    update({ [key]: !settings.value[key] })
-  }
-}
-
-/* async function handleSendEmailCode() {
-  emailError.value = ''
-  if (!newEmail.value.trim()) {
-    emailError.value = '请先输入新邮箱地址'
-    return
-  }
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(newEmail.value.trim())) {
-    emailError.value = '请输入有效的邮箱地址'
-    return
-  }
-  if (!emailCaptchaVerified.value) {
-    emailError.value = '请先完成图形验证码'
-    return
-  }
-  const result = await sendVerificationCode(newEmail.value.trim())
-  if (result.success) {
-    emailCodeSent.value = true
-    emailCodeCountdown.value = 60
-    emailCaptchaVerified.value = false
-    emailCaptchaReset.value += 1
-  } else {
-    emailError.value = result.error || '发送失败'
-    emailCaptchaVerified.value = false
-    emailCaptchaReset.value += 1
-  }
-} */
-
-/* async function handleChangePassword() {
-  pwdError.value = ''
-
-  if (!oldPassword.value.trim() || !newPassword.value.trim() || !pwdConfirm.value.trim()) {
-    pwdError.value = '请填写所有字段'
-    return
-  }
-  if (newPassword.value.length < 6) {
-    pwdError.value = '新密码至少需要6位'
-    return
-  }
-  if (newPassword.value !== pwdConfirm.value) {
-    pwdError.value = '两次输入的新密码不一致'
-    return
-  }
-
-  pwdSubmitting.value = true
-  const result = await changePassword(oldPassword.value, newPassword.value)
-  pwdSubmitting.value = false
-
-  if (result.success) {
-    pwdSuccess.value = true
-    clearTimeout(pwdSuccessTimer)
-    pwdSuccessTimer = setTimeout(() => {
-      showPasswordModal.value = false
-      resetPwdModal()
-    }, 1500)
-  } else {
-    pwdError.value = result.error || '修改失败，请重试'
-  }
-} */
-
-/* async function handleChangeEmail() {
-  emailError.value = ''
-
-  if (!newEmail.value.trim() || !emailPwd.value.trim() || !emailCode.value.trim()) {
-    emailError.value = '请填写所有字段'
-    return
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(newEmail.value.trim())) {
-    emailError.value = '请输入有效的邮箱地址'
-    return
-  }
-
-  emailSubmitting.value = true
-  const result = await changeEmail(newEmail.value.trim(), emailPwd.value, emailCode.value.trim())
-  emailSubmitting.value = false
-
-  if (result.success) {
-    emailSuccess.value = true
-    clearTimeout(emailSuccessTimer)
-    emailSuccessTimer = setTimeout(() => {
-      showEmailModal.value = false
-      resetEmailModal()
-    }, 1500)
-  } else {
-    emailError.value = result.error || '修改失败，请重试'
-  }
-} */
-
-function openPasswordModal() {
-  resetPwdModal()
-  showPasswordModal.value = true
-}
-
-function openEmailModal() {
+const openEmailModal = () => {
   resetEmailModal()
   showEmailModal.value = true
 }
 
-function closePasswordModal() {
-  showPasswordModal.value = false
-  resetPwdModal()
-}
-
-function closeEmailModal() {
+const closeEmailModal = () => {
   showEmailModal.value = false
   resetEmailModal()
 }
 
-function cancelNameEdit() {
-  nameEditing.value = false
-  displayName.value = userStore.user?.username || ''
+// 发送修改邮箱验证码
+const handleSendEmailCode = async () => {
+  emailError.value = ''
+  const email = newEmail.value.trim()
+  if (!email) {
+    emailError.value = '请输入新邮箱'
+    return
+  }
+  if (!isEmail(email)) {
+    emailError.value = '请输入有效的邮箱地址'
+    return
+  }
+  const payload = emailCaptchaRef.value?.getPayload()
+  if (!payload?.captchaId || !payload?.captchaCode || payload.captchaCode.length !== 4) {
+    emailError.value = '请先完成图形验证码'
+    return
+  }
+
+  if (emailSendingCode.value) return
+  emailSendingCode.value = true
+  try {
+    await userStore.sendCode({
+      email,
+      purpose: 'change_email',
+      captchaId: payload.captchaId,
+      captchaCode: payload.captchaCode
+    })
+    emailCodeSent.value = true
+    emailCodeCountdown.value = 60
+    ElMessage.success('验证码已发送')
+  } catch (err) {
+    ElMessage.error(err.message || '发送失败')
+  } finally {
+    emailSendingCode.value = false
+    emailCaptchaReady.value = false
+    emailCaptchaReset.value += 1
+  }
 }
 
-function onNameKeydown(e) {
-  if (e.key === 'Enter') handleSaveName()
-  if (e.key === 'Escape') cancelNameEdit()
+// 修改邮箱
+const handleChangeEmail = async () => {
+  emailError.value = ''
+  const email = newEmail.value.trim()
+  if (!email || !emailPwd.value || !emailCode.value) {
+    emailError.value = '请填写所有字段'
+    return
+  }
+  if (!isEmail(email)) {
+    emailError.value = '请输入有效的邮箱地址'
+    return
+  }
+  if (!isCodeValid(emailCode.value)) {
+    emailError.value = '验证码格式不正确，请输入6位数字验证码'
+    return
+  }
+
+  if (emailSubmitting.value) return
+  emailSubmitting.value = true
+  try {
+    await userStore.changeUserEmail({
+      newEmail: email,
+      code: emailCode.value,
+      password: emailPwd.value
+    })
+    emailSuccess.value = true
+    clearTimeout(emailSuccessTimer)
+    emailSuccessTimer = setTimeout(() => {
+      closeEmailModal()
+    }, 1500)
+  } catch (err) {
+    ElMessage.error(err.message || '修改邮箱失败，请重试')
+  } finally {
+    emailSubmitting.value = false
+  }
 }
 
-function clearLocalData() {
-  const keys = Object.keys(localStorage).filter((k) => k.startsWith('checkin_'))
-  keys.forEach((k) => localStorage.removeItem(k))
-  localStorage.removeItem(SETTINGS_STORAGE_KEY)
-  window.location.reload()
+// 触发头像上传
+const triggerAvatarInput = () => {
+  avatarInputRef.value?.click()
 }
 
-async function handleLogout() {
+// 上传头像
+const handleAvatarChange = async (e) => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+  if (!allowed.includes(file.type)) {
+    ElMessage.error('请上传 JPG、PNG、WEBP 格式图片')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片大小不能超过 5MB')
+    return
+  }
+
+  const fd = new FormData()
+  fd.append('file', file)
+
+  avatarUploading.value = true
+  try {
+    await userStore.uploadUserAvatar(fd)
+    ElMessage.success('头像上传成功')
+  } catch (err) {
+    ElMessage.error(err.message || '头像上传失败，请重试')
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+// 退出登录
+const handleLogout = async () => {
   showLogoutConfirm.value = false
   await userStore.logout()
   router.replace('/')
-}
-
-function onEmailCodeInput(e) {
-  emailCode.value = e.target.value.replace(/\D/g, '').slice(0, 6)
-  emailError.value = ''
 }
 </script>
 
@@ -298,13 +363,36 @@ function onEmailCodeInput(e) {
       </div>
       <div class="px-4 md:px-6 pb-5 space-y-4">
         <div class="flex items-center gap-4">
-          <div
-            class="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0"
-          >
-            <span class="text-[20px] font-bold text-primary-600">
-              {{ userStore.user?.username?.charAt(0) || 'U' }}
-            </span>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              class="relative flex-shrink-0 rounded-full cursor-pointer disabled:opacity-60 group"
+              :disabled="avatarUploading"
+              title="更换头像"
+              @click="triggerAvatarInput"
+            >
+              <user-avatar
+                :username="userStore.user?.username"
+                :avatar-url="userStore.user?.avatarUrl"
+                size-class="w-14 h-14"
+                text-class="text-[20px]"
+              />
+              <!-- 右下角相机角标 -->
+              <span
+                class="absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-sm border-2 border-white group-hover:bg-primary-600 transition-colors"
+              >
+                <i class="ri-camera-line text-[12px]" />
+              </span>
+            </button>
+            <input
+              ref="avatarInputRef"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              class="hidden"
+              @change="handleAvatarChange"
+            />
           </div>
+
           <div class="flex-1 min-w-0">
             <div v-if="nameEditing" class="flex items-center gap-2">
               <input
@@ -337,12 +425,6 @@ function onEmailCodeInput(e) {
               >
                 <i class="ri-edit-line text-[14px]" />
               </button>
-              <span
-                v-if="nameSaved"
-                class="text-[12px] text-emerald-600 font-medium whitespace-nowrap"
-              >
-                <i class="ri-check-line text-[13px]" /> 已保存
-              </span>
             </div>
           </div>
         </div>
@@ -395,12 +477,14 @@ function onEmailCodeInput(e) {
           <div class="flex-shrink-0 ml-4">
             <button
               class="relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer"
-              :class="settings.notificationEnabled ? 'bg-primary-500' : 'bg-background-300'"
+              :class="userStore.user?.notificationEnabled ? 'bg-primary-500' : 'bg-background-300'"
               @click="toggle('notificationEnabled')"
             >
               <span
                 class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200"
-                :class="settings.notificationEnabled ? 'translate-x-[20px]' : 'translate-x-0'"
+                :class="
+                  userStore.user?.notificationEnabled ? 'translate-x-[20px]' : 'translate-x-0'
+                "
               />
             </button>
           </div>
@@ -424,47 +508,15 @@ function onEmailCodeInput(e) {
             <button
               class="relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer"
               :class="[
-                !settings.notificationEnabled ? 'opacity-40 cursor-not-allowed' : '',
-                settings.soundEnabled ? 'bg-primary-500' : 'bg-background-300'
+                !userStore.user?.notificationEnabled ? 'opacity-40 cursor-not-allowed' : '',
+                userStore.user?.soundEnabled ? 'bg-primary-500' : 'bg-background-300'
               ]"
-              :disabled="!settings.notificationEnabled"
+              :disabled="!userStore.user?.notificationEnabled"
               @click="toggle('soundEnabled')"
             >
               <span
                 class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200"
-                :class="settings.soundEnabled ? 'translate-x-[20px]' : 'translate-x-0'"
-              />
-            </button>
-          </div>
-        </div>
-
-        <div
-          class="flex items-center justify-between py-3.5 px-3 rounded-xl hover:bg-background-50/60 transition-colors"
-        >
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div
-              class="w-9 h-9 rounded-lg bg-background-100 flex items-center justify-center flex-shrink-0"
-            >
-              <i class="ri-smartphone-line text-[16px] text-foreground-500" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[14px] font-medium text-foreground-800">震动提醒</p>
-              <p class="text-[12px] text-foreground-400 mt-0.5">提醒时同步震动</p>
-            </div>
-          </div>
-          <div class="flex-shrink-0 ml-4">
-            <button
-              class="relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer"
-              :class="[
-                !settings.notificationEnabled ? 'opacity-40 cursor-not-allowed' : '',
-                settings.vibrationEnabled ? 'bg-primary-500' : 'bg-background-300'
-              ]"
-              :disabled="!settings.notificationEnabled"
-              @click="toggle('vibrationEnabled')"
-            >
-              <span
-                class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200"
-                :class="settings.vibrationEnabled ? 'translate-x-[20px]' : 'translate-x-0'"
+                :class="userStore.user?.soundEnabled ? 'translate-x-[20px]' : 'translate-x-0'"
               />
             </button>
           </div>
@@ -486,102 +538,15 @@ function onEmailCodeInput(e) {
           </div>
           <div class="flex-shrink-0 ml-4">
             <select
-              :value="settings.reminderBeforeMinutes"
+              :value="userStore.user?.reminderBeforeMinutes"
               class="px-3 py-2 text-[13px] font-medium text-foreground-700 bg-background-50 border border-background-200 rounded-lg focus:outline-none focus:border-primary-400 cursor-pointer"
-              @change="update({ reminderBeforeMinutes: Number($event.target.value) })"
+              @change="onReminderChange"
             >
               <option :value="0">准时</option>
               <option :value="5">5 分钟前</option>
               <option :value="10">10 分钟前</option>
               <option :value="15">15 分钟前</option>
               <option :value="30">30 分钟前</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Display -->
-    <section class="bg-white border border-background-200 rounded-2xl overflow-hidden">
-      <div class="px-4 md:px-6 py-5">
-        <h2 class="text-[15px] md:text-[16px] font-semibold text-foreground-900">显示设置</h2>
-        <p class="text-[12px] text-foreground-400 mt-0.5">自定义应用的显示方式</p>
-      </div>
-      <div class="px-4 md:px-6 pb-5 space-y-0.5">
-        <div
-          class="flex items-center justify-between py-3.5 px-3 rounded-xl hover:bg-background-50/60 transition-colors"
-        >
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div
-              class="w-9 h-9 rounded-lg bg-background-100 flex items-center justify-center flex-shrink-0"
-            >
-              <i class="ri-global-line text-[16px] text-foreground-500" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[14px] font-medium text-foreground-800">语言</p>
-              <p class="text-[12px] text-foreground-400 mt-0.5">切换界面语言</p>
-            </div>
-          </div>
-          <div class="flex-shrink-0 ml-4">
-            <select
-              :value="settings.language"
-              class="px-3 py-2 text-[13px] font-medium text-foreground-700 bg-background-50 border border-background-200 rounded-lg focus:outline-none focus:border-primary-400 cursor-pointer"
-              @change="update({ language: $event.target.value })"
-            >
-              <option value="zh">中文</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-        </div>
-
-        <div
-          class="flex items-center justify-between py-3.5 px-3 rounded-xl hover:bg-background-50/60 transition-colors"
-        >
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div
-              class="w-9 h-9 rounded-lg bg-background-100 flex items-center justify-center flex-shrink-0"
-            >
-              <i class="ri-time-line text-[16px] text-foreground-500" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[14px] font-medium text-foreground-800">时间格式</p>
-              <p class="text-[12px] text-foreground-400 mt-0.5">选择 12 小时或 24 小时制</p>
-            </div>
-          </div>
-          <div class="flex-shrink-0 ml-4">
-            <select
-              :value="settings.timeFormat"
-              class="px-3 py-2 text-[13px] font-medium text-foreground-700 bg-background-50 border border-background-200 rounded-lg focus:outline-none focus:border-primary-400 cursor-pointer"
-              @change="update({ timeFormat: $event.target.value })"
-            >
-              <option value="24h">24 小时制</option>
-              <option value="12h">12 小时制</option>
-            </select>
-          </div>
-        </div>
-
-        <div
-          class="flex items-center justify-between py-3.5 px-3 rounded-xl hover:bg-background-50/60 transition-colors"
-        >
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div
-              class="w-9 h-9 rounded-lg bg-background-100 flex items-center justify-center flex-shrink-0"
-            >
-              <i class="ri-calendar-line text-[16px] text-foreground-500" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[14px] font-medium text-foreground-800">每周起始日</p>
-              <p class="text-[12px] text-foreground-400 mt-0.5">选择日历视图的起始日期</p>
-            </div>
-          </div>
-          <div class="flex-shrink-0 ml-4">
-            <select
-              :value="settings.weekStartsOn"
-              class="px-3 py-2 text-[13px] font-medium text-foreground-700 bg-background-50 border border-background-200 rounded-lg focus:outline-none focus:border-primary-400 cursor-pointer"
-              @change="update({ weekStartsOn: $event.target.value })"
-            >
-              <option value="1">周一</option>
-              <option value="0">周日</option>
             </select>
           </div>
         </div>
@@ -615,32 +580,6 @@ function onEmailCodeInput(e) {
               @click="openPasswordModal"
             >
               前往修改
-            </button>
-          </div>
-        </div>
-
-        <div
-          class="flex items-center justify-between py-3.5 px-3 rounded-xl hover:bg-background-50/60 transition-colors"
-        >
-          <div class="flex items-center gap-3 min-w-0 flex-1">
-            <div
-              class="w-9 h-9 rounded-lg bg-background-100 flex items-center justify-center flex-shrink-0"
-            >
-              <i class="ri-delete-bin-line text-[16px] text-foreground-500" />
-            </div>
-            <div class="min-w-0">
-              <p class="text-[14px] font-medium text-foreground-800">清除本地数据</p>
-              <p class="text-[12px] text-foreground-400 mt-0.5">
-                清除打卡记录和本地缓存，不会影响云端数据
-              </p>
-            </div>
-          </div>
-          <div class="flex-shrink-0 ml-4">
-            <button
-              class="px-4 py-2 text-[12px] font-medium text-foreground-600 bg-background-100 hover:bg-background-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-              @click="clearLocalData"
-            >
-              清除
             </button>
           </div>
         </div>
@@ -749,7 +688,7 @@ function onEmailCodeInput(e) {
       @click="closePasswordModal"
     >
       <div class="bg-white rounded-2xl w-full max-w-[400px] overflow-hidden" @click.stop>
-        <div class="px-6 pt-6 pb-2">
+        <div class="px-6 pt-6 pb-6">
           <div class="flex items-center justify-between mb-5">
             <h3 class="text-[16px] font-semibold text-foreground-900">修改密码</h3>
             <button
@@ -772,22 +711,15 @@ function onEmailCodeInput(e) {
 
           <div v-else class="space-y-4">
             <div>
-              <label class="block text-[12px] font-medium text-foreground-600 mb-1.5">原密码</label>
+              <label class="block text-[12px] font-medium text-foreground-600 mb-1.5">旧密码</label>
               <div class="relative">
                 <input
-                  :type="pwdShowOld ? 'text' : 'password'"
+                  type="password"
                   v-model="oldPassword"
                   placeholder="输入当前密码"
-                  class="w-full px-3.5 py-2.5 pr-10 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                  class="w-full px-3.5 py-2.5 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
                   @input="pwdError = ''"
                 />
-                <button
-                  type="button"
-                  class="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-foreground-400 hover:text-foreground-600 cursor-pointer"
-                  @click="pwdShowOld = !pwdShowOld"
-                >
-                  <i :class="[pwdShowOld ? 'ri-eye-off-line' : 'ri-eye-line', 'text-[15px]']" />
-                </button>
               </div>
             </div>
 
@@ -795,19 +727,12 @@ function onEmailCodeInput(e) {
               <label class="block text-[12px] font-medium text-foreground-600 mb-1.5">新密码</label>
               <div class="relative">
                 <input
-                  :type="pwdShowNew ? 'text' : 'password'"
+                  type="password"
                   v-model="newPassword"
-                  placeholder="至少6位新密码"
-                  class="w-full px-3.5 py-2.5 pr-10 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                  placeholder="请输入6-12位密码"
+                  class="w-full px-3.5 py-2.5 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
                   @input="pwdError = ''"
                 />
-                <button
-                  type="button"
-                  class="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-foreground-400 hover:text-foreground-600 cursor-pointer"
-                  @click="pwdShowNew = !pwdShowNew"
-                >
-                  <i :class="[pwdShowNew ? 'ri-eye-off-line' : 'ri-eye-line', 'text-[15px]']" />
-                </button>
               </div>
             </div>
 
@@ -817,25 +742,18 @@ function onEmailCodeInput(e) {
               >
               <div class="relative">
                 <input
-                  :type="pwdShowConfirm ? 'text' : 'password'"
+                  type="password"
                   v-model="pwdConfirm"
                   placeholder="再次输入新密码"
-                  class="w-full px-3.5 py-2.5 pr-10 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
+                  class="w-full px-3.5 py-2.5 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
                   @input="pwdError = ''"
                   @keydown.enter="handleChangePassword"
                 />
-                <button
-                  type="button"
-                  class="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-foreground-400 hover:text-foreground-600 cursor-pointer"
-                  @click="pwdShowConfirm = !pwdShowConfirm"
-                >
-                  <i :class="[pwdShowConfirm ? 'ri-eye-off-line' : 'ri-eye-line', 'text-[15px]']" />
-                </button>
               </div>
             </div>
 
-            <p v-if="pwdError" class="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-              {{ pwdError }}
+            <p v-if="pwdError" class="text-[12px] text-red-500 leading-snug">
+              <i class="ri-error-warning-line"></i> {{ pwdError }}
             </p>
 
             <button
@@ -857,7 +775,7 @@ function onEmailCodeInput(e) {
       @click="closeEmailModal"
     >
       <div class="bg-white rounded-2xl w-full max-w-[400px] overflow-hidden" @click.stop>
-        <div class="px-6 pt-6 pb-2">
+        <div class="px-6 pt-6 pb-6">
           <div class="flex items-center justify-between mb-5">
             <h3 class="text-[16px] font-semibold text-foreground-900">修改邮箱</h3>
             <button
@@ -881,7 +799,9 @@ function onEmailCodeInput(e) {
           <div v-else class="space-y-4">
             <div class="px-3.5 py-2.5 bg-background-50 border border-background-200 rounded-lg">
               <p class="text-[11px] text-foreground-400">当前邮箱</p>
-              <p class="text-[13px] font-medium text-foreground-700">{{ user?.email }}</p>
+              <p class="text-[13px] font-medium text-foreground-700">
+                {{ userStore.user?.email || '未设置' }}
+              </p>
             </div>
 
             <div>
@@ -917,18 +837,19 @@ function onEmailCodeInput(e) {
               </p>
 
               <CaptchaField
+                ref="emailCaptchaRef"
                 :reset-trigger="emailCaptchaReset"
-                @ready-change="emailCaptchaReady = $event"
+                @ready-change="(value) => (emailCaptchaReady = value)"
               />
 
               <div class="flex gap-2 mt-3">
                 <input
+                  v-model="emailCode"
                   type="text"
-                  :value="emailCode"
                   placeholder="6位验证码"
                   maxlength="6"
                   class="flex-1 px-3.5 py-2.5 text-[13px] text-foreground-900 bg-background-50 border border-background-200 rounded-lg placeholder:text-foreground-300 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
-                  @input="onEmailCodeInput"
+                  @input="emailError = ''"
                 />
                 <button
                   type="button"
@@ -947,8 +868,8 @@ function onEmailCodeInput(e) {
               </div>
             </div>
 
-            <p v-if="emailError" class="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-              {{ emailError }}
+            <p v-if="emailError" class="text-[12px] text-red-500 leading-snug">
+              <i class="ri-error-warning-line"></i> {{ emailError }}
             </p>
 
             <button

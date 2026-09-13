@@ -12,5 +12,15 @@ export const loginByPassword = (data) => request.post('/auth/login', data)
 export const loginByCode = (data) => request.post('/auth/login-code', data)
 // 获取用户信息
 export const getUserInfo = () => request.get('/auth/me')
+// 修改用户名
+export const updateProfile = (data) => request.patch('/auth/profile', data)
+// 修改通知设置
+export const updateSettings = (data) => request.patch('/auth/settings', data)
+// 修改密码
+export const changePassword = (data) => request.patch('/auth/password', data)
+// 修改邮箱
+export const changeEmail = (data) => request.post('/auth/change-email', data)
+// 上传头像
+export const uploadAvatar = (formData) => request.post('/auth/avatar', formData)
 // 退出登录
 export const logoutUser = () => request.post('/auth/logout')

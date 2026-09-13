@@ -125,6 +125,13 @@ const isDaysArrayValid = (days) => {
 // 布尔值校验
 const isBooleanValid = (value) => value === true || value === false;
 
+// 提前提醒分钟数校验
+const isReminderBeforeValid = (value) => {
+  const n = Number(value);
+  if (!Number.isInteger(n)) return false;
+  return [0, 5, 10, 15, 30].includes(n);
+};
+
 module.exports = {
   isNotEmpty,
   isEmail,
@@ -143,5 +150,6 @@ module.exports = {
   isTimeValid,
   isDayValid,
   isDaysArrayValid,
-  isBooleanValid
+  isBooleanValid,
+  isReminderBeforeValid
 };

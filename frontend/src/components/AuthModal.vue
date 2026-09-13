@@ -44,18 +44,12 @@ const goAfterAuth = () => {
   else router.replace({ name: 'dashboard' })
 }
 
-const tick = () => {
+watch(countdown, (value) => {
   clearTimeout(timer)
-  if (countdown.value <= 0) return
+  if (value <= 0) return
   timer = setTimeout(() => {
     countdown.value -= 1
-    tick()
   }, 1000)
-}
-
-watch(countdown, (value) => {
-  if (value > 0) tick()
-  else clearTimeout(timer)
 })
 
 onBeforeUnmount(() => clearTimeout(timer))
@@ -158,7 +152,7 @@ const submitLogin = async () => {
       return
     }
     if (!isCodeValid(code.value)) {
-      error.value = '验证码格式不正确，请输入有效的验证码'
+      error.value = '验证码格式不正确，请输入6位数字验证码'
       return
     }
   }
@@ -215,7 +209,7 @@ const submitRegister = async () => {
     return
   }
   if (!isCodeValid(code.value)) {
-    error.value = '验证码格式不正确'
+    error.value = '验证码格式不正确，请输入6位数字验证码'
     return
   }
   if (!codeSent.value) {
@@ -266,7 +260,7 @@ const submitClass =
       </button>
 
       <div class="flex justify-center mb-4">
-        <LogoMark size="lg" :show-text="false" />
+        <logo-mark size="lg" :show-text="false" />
       </div>
 
       <div class="text-center mb-6">

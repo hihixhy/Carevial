@@ -88,10 +88,10 @@ onMounted(async () => {
       {{ dateLine }}
     </p>
 
-    <AiBanner />
+    <ai-banner />
 
     <div class="mt-5 md:mt-6">
-      <StatsCards
+      <stats-cards
         :medicines="medicines"
         :members="members"
         :checked-count="checkedCount"
@@ -101,7 +101,7 @@ onMounted(async () => {
 
     <div class="flex flex-col lg:flex-row gap-4 md:gap-6 mt-6 md:mt-8">
       <div class="flex-1 min-w-0">
-        <TodayMedicineTimeline
+        <today-medicine-timeline
           :items="todayItems"
           :checked-count="checkedCount"
           :total="total"
@@ -112,8 +112,8 @@ onMounted(async () => {
       </div>
 
       <div class="w-full lg:w-[300px] flex-shrink-0 space-y-4 md:space-y-5">
-        <ExpiringAlert :medicines="medicines" />
-        <QuickActions />
+        <expiring-alert :medicines="medicines" />
+        <quick-actions />
       </div>
     </div>
   </div>
