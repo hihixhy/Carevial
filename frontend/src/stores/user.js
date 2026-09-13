@@ -6,6 +6,11 @@ import {
   loginByPassword,
   loginByCode,
   getUserInfo,
+  updateProfile,
+  updateSettings,
+  changePassword,
+  changeEmail,
+  uploadAvatar,
   logoutUser
 } from '../api/auth'
 
@@ -44,6 +49,32 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  const updateUserProfile = async (payload) => {
+    const res = await updateProfile(payload)
+    user.value = res.data
+    return res
+  }
+
+  const updateUserSettings = async (payload) => {
+    const res = await updateSettings(payload)
+    user.value = res.data
+    return res
+  }
+
+  const changeUserPassword = (payload) => changePassword(payload)
+
+  const changeUserEmail = async (payload) => {
+    const res = await changeEmail(payload)
+    user.value = res.data
+    return res
+  }
+
+  const uploadUserAvatar = async (formData) => {
+    const res = await uploadAvatar(formData)
+    user.value = res.data
+    return res
+  }
+
   const logout = async () => {
     try {
       await logoutUser()
@@ -61,6 +92,11 @@ export const useUserStore = defineStore('user', () => {
     login,
     loginCode,
     getUser,
+    updateUserProfile,
+    updateUserSettings,
+    changeUserPassword,
+    changeUserEmail,
+    uploadUserAvatar,
     logout
   }
 })

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LogoMark from '../LogoMark.vue'
 import ConfirmModal from '../ConfirmModal.vue'
+import UserAvatar from '../UserAvatar.vue'
 import { useUserStore } from '../../stores/user'
 
 const userStore = useUserStore()
@@ -54,13 +55,13 @@ async function handleLogout() {
     :class="collapsed ? 'w-16' : 'w-[220px]'"
   >
     <div class="flex items-center px-5 h-[68px]">
-      <RouterLink to="/dashboard" class="flex-shrink-0">
-        <LogoMark size="md" :show-text="!collapsed" />
-      </RouterLink>
+      <router-link to="/dashboard" class="flex-shrink-0">
+        <logo-mark size="md" :show-text="!collapsed" />
+      </router-link>
     </div>
 
     <nav class="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-      <RouterLink
+      <router-link
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
@@ -83,17 +84,18 @@ async function handleLogout() {
           ]"
         />
         <span v-if="!collapsed">{{ item.label }}</span>
-      </RouterLink>
+      </router-link>
     </nav>
 
     <div class="px-3 py-3 space-y-0.5 border-t border-background-100">
       <div v-if="userStore.user && !collapsed" class="px-3 py-2.5 mb-1">
         <div class="flex items-center gap-2.5">
-          <div
-            class="w-8 h-8 rounded-full bg-background-100 flex items-center justify-center flex-shrink-0"
-          >
-            <i class="ri-user-line text-foreground-400 text-[14px]" />
-          </div>
+          <user-avatar
+            :username="userStore.user?.username"
+            :avatar-url="userStore.user?.avatarUrl"
+            size-class="w-8 h-8"
+            text-class="text-[14px]"
+          />
           <div class="min-w-0">
             <p class="text-[13px] font-medium text-foreground-800 truncate">
               {{ userStore.user?.username }}
@@ -102,13 +104,13 @@ async function handleLogout() {
           </div>
         </div>
       </div>
-      <div
-        v-else-if="userStore.user && collapsed"
-        class="flex justify-center py-2 mb-1"
-      >
-        <div class="w-8 h-8 rounded-full bg-background-100 flex items-center justify-center">
-          <i class="ri-user-line text-foreground-400 text-[14px]" />
-        </div>
+      <div v-else-if="userStore.user && collapsed" class="flex justify-center py-2 mb-1">
+        <user-avatar
+          :username="userStore.user?.username"
+          :avatar-url="userStore.user?.avatarUrl"
+          size-class="w-8 h-8"
+          text-class="text-[14px]"
+        />
       </div>
 
       <button
@@ -132,7 +134,7 @@ async function handleLogout() {
     </div>
   </aside>
 
-  <ConfirmModal
+  <confirm-modal
     :open="showLogoutConfirm"
     title="确认退出"
     description="退出后需要重新登录才能访问数据"
@@ -155,21 +157,19 @@ async function handleLogout() {
     :class="mobileOpen ? 'translate-x-0' : '-translate-x-full'"
   >
     <div class="flex items-center px-5 h-[68px] border-b border-background-100">
-      <RouterLink to="/dashboard" class="flex-shrink-0" @click="handleNavClick">
-        <LogoMark size="md" show-text />
-      </RouterLink>
+      <router-link to="/dashboard" class="flex-shrink-0" @click="handleNavClick">
+        <logo-mark size="md" show-text />
+      </router-link>
     </div>
 
-    <div
-      v-if="userStore.user"
-      class="px-5 py-3.5 border-b border-background-100"
-    >
+    <div v-if="userStore.user" class="px-5 py-3.5 border-b border-background-100">
       <div class="flex items-center gap-3">
-        <div
-          class="w-9 h-9 rounded-full bg-background-100 flex items-center justify-center flex-shrink-0"
-        >
-          <i class="ri-user-line text-foreground-400 text-[15px]" />
-        </div>
+        <user-avatar
+          :username="userStore.user?.username"
+          :avatar-url="userStore.user?.avatarUrl"
+          size-class="w-9 h-9"
+          text-class="text-[15px]"
+        />
         <div class="min-w-0">
           <p class="text-[14px] font-medium text-foreground-800 truncate">
             {{ userStore.user?.username }}
@@ -180,7 +180,7 @@ async function handleLogout() {
     </div>
 
     <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-      <RouterLink
+      <router-link
         v-for="item in navItems"
         :key="item.path"
         :to="item.path"
@@ -204,7 +204,7 @@ async function handleLogout() {
           ]"
         />
         <span>{{ item.label }}</span>
-      </RouterLink>
+      </router-link>
     </nav>
 
     <div class="px-3 py-3 space-y-0.5 border-t border-background-100">
