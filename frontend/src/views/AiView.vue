@@ -1,12 +1,14 @@
 <script setup>
 import { nextTick, ref, watch } from 'vue'
+import { chatWithAiStream, confirmAction } from '../api/ai'
+import { renderMarkdown } from '../utils/markdown'
 
 const initialMessages = [
   {
     id: '1',
     role: 'assistant',
     content:
-      '你好！我是 Carevial 的 AI 助手。你可以直接告诉我你想做什么，比如：\n\n• "帮我给爸爸设置每天早上8点吃降压药"\n• "家里布洛芬还够吗"\n• "阿莫西林和头孢有什么区别"\n\n我会帮你快速完成操作！',
+      '你好！我是 Carevial 的 AI 助手。你可以直接告诉我你想做什么，或者你想了解什么，比如：\n\n• "帮我给爸爸设置每天早上8点吃降压药"\n• "阿莫西林和头孢有什么区别"\n\n我会帮你快速完成操作！',
     timestamp: '刚刚'
   }
 ]
@@ -21,6 +23,8 @@ const suggestions = [
 const messages = ref([...initialMessages])
 const input = ref('')
 const isTyping = ref(false)
+// 防止待确认消息被连点
+const confirmingId = ref(null)
 const messagesEndRef = ref(null)
 
 watch(
@@ -32,54 +36,128 @@ watch(
   { deep: true }
 )
 
-function getMockResponse(text) {
-  const q = text.toLowerCase()
-
-  if (q.includes('提醒') || q.includes('早上') || q.includes('晚上') || q.includes('设置')) {
-    return '好的，我已经记录了你的提醒需求。在接下来的版本中，我会直接帮你完成提醒设置。目前你可以前往「提醒」页面手动添加，也可以在「添加药品」页面录入新药品后自动创建提醒。\n\n有其他需要吗？'
-  }
-
-  if (q.includes('过期') || q.includes('有效期')) {
-    return '目前你的药箱中有 4 种药品将在 30 天内过期：\n\n• 布洛芬缓释胶囊 — 还剩 4 天\n• 小儿氨酚黄那敏颗粒 — 有效期至 2026-09-05\n• 硝苯地平控释片 — 有效期至 2026-12-30\n• 阿托伐他汀钙片 — 有效期至 2026-11-18\n\n建议尽快补充或处理。需要我帮你做些什么吗？'
-  }
-
-  if (q.includes('高血压') || q.includes('区别') || q.includes('注意')) {
-    return '关于用药咨询，我是基于通用知识来回答的，不能替代医生建议。如果你有具体的用药问题，建议咨询专业医生或药师。\n\n不过我可以帮你管理药品信息和提醒，确保按时服药。需要我帮你设置提醒吗？'
-  }
-
-  if (q.includes('添加') || q.includes('妈妈') || q.includes('爸爸') || q.includes('维生素')) {
-    return '收到！我已经记下来了。你可以前往「药品」页面点击「添加药品」，填写基本信息。之后我也会在提醒页面帮你设置定时提醒。\n\n需要我现在带你去添加药品页面吗？'
-  }
-
-  return '好的，我收到了你的消息。目前我可以帮你：\n\n1. 添加和管理药品信息\n2. 设置用药提醒\n3. 查看过期药品\n4. 回答用药常识问题\n\n请告诉我更多细节，我会尽力帮你！'
+// 只把 role + content 传给后端；可去掉开场白，避免占额度
+// 并过滤掉空消息
+const buildHistoryForApi = () => {
+  return messages.value
+    .filter((m) => m.id !== '1')
+    .filter((m) => String(m.content || '').trim())
+    .map((m) => ({ role: m.role, content: m.content }))
 }
 
-function sendMessage(text) {
-  if (!text.trim()) return
-  const userMsg = {
-    id: Date.now().toString(),
-    role: 'user',
-    content: text,
-    timestamp: '刚刚'
-  }
-  messages.value = [...messages.value, userMsg]
-  input.value = ''
-  isTyping.value = true
+const sendMessage = async (text) => {
+  const content = text.trim()
+  if (!content || isTyping.value) return
 
-  setTimeout(() => {
-    const aiMsg = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: getMockResponse(text),
+  messages.value = [
+    ...messages.value,
+    {
+      id: Date.now().toString(),
+      role: 'user',
+      content,
       timestamp: '刚刚'
     }
-    messages.value = [...messages.value, aiMsg]
+  ]
+  input.value = ''
+
+  // 先往messages数组添加一个占位消息，等后端流式返回内容后，再更新内容
+  const history = buildHistoryForApi()
+  const assistantId = (Date.now() + 1).toString()
+  messages.value = [
+    ...messages.value,
+    {
+      id: assistantId,
+      role: 'assistant',
+      content: '',
+      timestamp: '刚刚',
+      statusText: '',
+      streaming: true,
+      pendingAction: null,
+      actionStatus: null
+    }
+  ]
+
+  isTyping.value = true
+
+  try {
+    await chatWithAiStream(history, {
+      onDelta: (piece) => {
+        const msg = findMessage(assistantId)
+        if (!msg) return
+        msg.statusText = ''
+        msg.content += piece
+      },
+
+      onStatus: (message) => {
+        const msg = findMessage(assistantId)
+        if (!msg) return
+        // 工具执行中：气泡里提示，仍算streaming
+        msg.statusText = message
+      },
+
+      onPending: ({ reply, pendingAction }) => {
+        const msg = findMessage(assistantId)
+        if (!msg) return
+        msg.statusText = ''
+        msg.content = reply || ''
+        msg.pendingAction = pendingAction
+        msg.actionStatus = pendingAction ? 'pending' : null
+        msg.streaming = false
+      },
+
+      onDone: () => {
+        const msg = findMessage(assistantId)
+        if (!msg) return
+        msg.statusText = ''
+        msg.streaming = false
+      },
+
+      onError: (err) => {
+        ElMessage.error(err.message || 'AI请求失败，请稍后再试')
+      }
+    })
+  } catch {
+    const msg = findMessage(assistantId)
+    if (msg && !msg.content) {
+      // 没内容，删掉空气泡
+      messages.value = messages.value.filter((m) => m.id !== assistantId)
+    } else if (msg) {
+      // 有内容，但出错，改为普通消息
+      msg.streaming = false
+    }
+  } finally {
     isTyping.value = false
-  }, 1200)
+    const msg = findMessage(assistantId)
+    if (msg) msg.streaming = false
+  }
 }
 
-function handleSubmit(e) {
-  e.preventDefault()
+const findMessage = (id) => messages.value.find((m) => m.id === id)
+
+const onConfirmAction = async (msgId) => {
+  const msg = findMessage(msgId)
+  if (!msg?.pendingAction || msg.actionStatus !== 'pending') return
+  if (confirmingId.value) return
+
+  confirmingId.value = msgId
+  try {
+    const res = await confirmAction(msg.pendingAction)
+    msg.actionStatus = 'done'
+    ElMessage.success(res.message || '执行成功')
+  } catch (err) {
+    ElMessage.error(err.message || '确认失败，请稍后再试')
+  } finally {
+    confirmingId.value = null
+  }
+}
+
+const onCancelAction = (msgId) => {
+  const msg = findMessage(msgId)
+  if (!msg || msg.actionStatus !== 'pending') return
+  msg.actionStatus = 'cancelled'
+}
+
+const handleSubmit = () => {
   sendMessage(input.value)
 }
 </script>
@@ -96,14 +174,96 @@ function handleSubmit(e) {
           <div :class="msg.role === 'user' ? 'max-w-[75%] md:max-w-[60%]' : 'w-[95%]'">
             <div
               :class="[
-                'rounded-2xl px-4 md:px-5 py-3 md:py-3.5 text-[13px] md:text-[14px] leading-relaxed whitespace-pre-wrap',
+                'rounded-2xl px-4 md:px-5 py-3 md:py-3.5 text-[13px] md:text-[14px] leading-relaxed',
                 msg.role === 'user'
-                  ? 'bg-primary-500 text-white rounded-br-md'
+                  ? 'bg-primary-500 text-white rounded-br-md whitespace-pre-wrap'
                   : 'bg-white border border-background-200/70 text-foreground-800 rounded-bl-md'
               ]"
             >
-              {{ msg.content }}
+              <!-- 用户:纯文本 -->
+              <div v-if="msg.role === 'user'" class="whitespace-pre-wrap">
+                {{ msg.content }}
+              </div>
+              <!-- 流式输出:纯文本，结束后:markdown -->
+              <div v-else-if="msg.streaming" class="whitespace-pre-wrap">
+                <template v-if="msg.content">
+                  {{ msg.content }}
+                </template>
+                <span v-else-if="msg.statusText" class="text-foreground-500">{{
+                  msg.statusText
+                }}</span>
+                <div v-else class="flex items-center gap-1.5 py-0.5">
+                  <span class="w-2 h-2 rounded-full bg-foreground-300 animate-bounce"></span>
+                  <span
+                    class="w-2 h-2 rounded-full bg-foreground-300 animate-bounce"
+                    style="animation-delay: 0.15s"
+                  ></span>
+                  <span
+                    class="w-2 h-2 rounded-full bg-foreground-300 animate-bounce"
+                    style="animation-delay: 0.3s"
+                  ></span>
+                </div>
+              </div>
+              <!-- AI:Markdown渲染 -->
+              <div v-else class="ai-md" v-html="renderMarkdown(msg.content)"></div>
+
+              <div
+                v-if="msg.role === 'assistant' && msg.pendingAction"
+                class="mt-3 rounded-xl border border-background-200 bg-background-50 p-4"
+              >
+                <div class="flex items-center gap-2 mb-3">
+                  <i class="ri-shield-check-line text-primary-600 text-[16px]"></i>
+                  <p class="text-[13px] font-semibold text-foreground-900">需要你确认后才会执行</p>
+                </div>
+
+                <div class="space-y-2 text-[13px]">
+                  <div
+                    v-for="(row, idx) in msg.pendingAction.fields || []"
+                    :key="idx"
+                    class="flex items-center gap-3"
+                  >
+                    <span class="min-w-14 flex-shrink-0 text-foreground-400">{{ row.label }}</span>
+                    <span class="font-medium text-foreground-900">{{ row.value }}</span>
+                  </div>
+                </div>
+
+                <div v-if="msg.actionStatus === 'pending'" class="flex gap-2 mt-4">
+                  <button
+                    type="button"
+                    class="flex-1 py-2.5 text-[13px] text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors cursor-pointer whitespace-nowrap font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                    :disabled="confirmingId === msg.id"
+                    @click="onConfirmAction(msg.id)"
+                  >
+                    确认执行
+                  </button>
+                  <button
+                    type="button"
+                    class="flex-1 py-2.5 text-[13px] text-foreground-600 bg-white hover:bg-background-100 border border-background-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    :disabled="confirmingId === msg.id"
+                    @click="onCancelAction(msg.id)"
+                  >
+                    取消
+                  </button>
+                </div>
+
+                <div
+                  v-else-if="msg.actionStatus === 'done'"
+                  class="mt-4 flex items-center gap-2 text-[13px] text-primary-700 font-medium"
+                >
+                  <i class="ri-checkbox-circle-fill text-[16px]"></i>
+                  {{ msg.pendingAction.resultText?.done || '已执行成功' }}
+                </div>
+
+                <div
+                  v-else-if="msg.actionStatus === 'cancelled'"
+                  class="mt-4 flex items-center gap-2 text-[13px] text-foreground-400 font-medium"
+                >
+                  <i class="ri-close-circle-line text-[16px]"></i>
+                  {{ msg.pendingAction.resultText?.cancelled || '已取消，未执行任何操作' }}
+                </div>
+              </div>
             </div>
+
             <p
               :class="[
                 'text-[11px] text-foreground-300 mt-1.5',
@@ -112,24 +272,6 @@ function handleSubmit(e) {
             >
               {{ msg.timestamp }}
             </p>
-          </div>
-        </div>
-
-        <div v-if="isTyping" class="flex justify-center">
-          <div
-            class="bg-white border border-background-200/70 rounded-2xl rounded-bl-md px-4 md:px-5 py-3 md:py-3.5"
-          >
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-foreground-300 animate-bounce"></span>
-              <span
-                class="w-2 h-2 rounded-full bg-foreground-300 animate-bounce"
-                style="animation-delay: 0.15s"
-              ></span>
-              <span
-                class="w-2 h-2 rounded-full bg-foreground-300 animate-bounce"
-                style="animation-delay: 0.3s"
-              ></span>
-            </div>
           </div>
         </div>
 
@@ -148,7 +290,10 @@ function handleSubmit(e) {
           </button>
         </div>
 
-        <form class="px-2 md:px-3 pb-4 md:pb-6 flex items-center gap-3" @submit="handleSubmit">
+        <form
+          class="px-2 md:px-3 pb-4 md:pb-6 flex items-center gap-3"
+          @submit.prevent="handleSubmit"
+        >
           <input
             v-model="input"
             type="text"

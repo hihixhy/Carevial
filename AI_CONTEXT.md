@@ -1,7 +1,7 @@
 # Carevial 项目记忆（给后续 AI）
 
-> 新对话先读本文件再改代码。更新日期：**2026-09-13**。有重大决策时同步更新。  
-> 对话备份：[Carevial 开发主线](0ab0c5b3-7d02-46d3-ba0b-41246392c493)（agent-transcripts）。
+> 新对话先读本文件再改代码。更新日期：**2026-09-15**。有重大决策时同步更新。  
+> 对话备份：[Carevial 开发主线](0ab0c5b3-7d02-46d3-ba0b-41246392c493)；AI 助手会话：[AI 流式与工具](55162c78-2c0f-45d5-a2c1-2eff3b37f7de)（agent-transcripts）。
 
 ---
 
@@ -72,10 +72,11 @@
 - **打卡（2026-09-11 已完成）**：`CheckinView` + `/api/medicine-logs`。横条为**今天 ±3 共 7 个日历日**（不是周一～周日周历）。列表 = 该日周几匹配的提醒（**不过滤 `enabled`**：`enabled` 只表示以后要不要通知）+ 是否已打卡。打卡 `POST`（body：`reminderId`、`logDate`），取消 `DELETE /:id`（用返回的 `logId`）。有行 = 已服、`status='taken'`；无行 = 未打卡。周条进度对 7 天各调一次 `GET ?date=`。`item.checked`（布尔）与汇总 `checkedCount`（数字）勿混名。
 - **Dashboard（2026-09-11 已完成）**：`DashboardView` **状态提升**——父组件 `Promise.all` 拉齐 `medicines` / `members` / 今日 `medicine-logs`，子组件只收 props。`StatsCards`（药品数、家人数、今日打卡、即将过期数）、`TodayMedicineTimeline`（按上午/下午/晚上分组；`emit('toggle')` → 父组件 `addLog`/`deleteLog` 再刷新）、`ExpiringAlert`（只筛 `expiryStatus === 'expiring'`，按 `diffDaysFromToday(expiryDate)` 排序；`memberName || '家庭公用'`）；`QuickActions` / `AiBanner` 纯跳转。与打卡页同源云端。日期：`utils/date.js`（dayjs + `zh-cn`：`getTodayDateStr`、`getDateLine`、`getWeekdayLabel`、`diffDaysFromToday`）。已不用 `useMedicineCheckin` / `mocks/dashboard.js`（仓库里若还在可删）。
 - **设置（2026-09-13 已完成）**：`SettingsView` + 扩展 `/api/auth`。改用户名 `PATCH /profile`；通知偏好 `PATCH /settings`（`notificationEnabled` / `soundEnabled` / `reminderBeforeMinutes`∈`{0,5,10,15,30}`，存 `users` 表）；改密 `PATCH /password`；改邮 `POST /change-email`（发码 `purpose: change_email` + 图形码，验证码绑**新邮箱**，提交需当前密码；`checkCode` 成功后再 `consumeCode`）；头像 `POST /avatar`（`uploadSingle`，字段名 `file`，COS，写库成功删旧图）。登录与 `/me` 经 `formatUser` 返回 camelCase 含上述字段。Pinia `stores/user.js` 成功后写回 `user`。`UserAvatar`：有 `avatarUrl` 用图，否则用户名首字母；设置页与 `Sidebar` 共用。关通知时前端**只禁用**声音开关，**不**把 `soundEnabled` 改成 false。已去掉：震动、语言/时间格式/每周起始日、清除本地数据；用户协议/隐私政策 UI 保留但未实现。错误约定：表单校验 → 行内 `error`；接口失败 → `ElMessage`。验证码倒计时：`watch(countdown)` + `setTimeout` 链（AuthModal 与设置页统一此写法）。暂无浏览器推送 / `Notification` 权限（偏好先入库，到点提醒以后再接）。
+- **AI 助手（2026-09-15 · MVP 进行中，未完）**：`AiView` + `/api/ai`。模型 **DeepSeek**（`deepseek-flash`，axios 调官方 API，**不**换 Python）。**已完成**：流式对话（SSE）+ Markdown（`marked` + `dompurify`，样式 `.ai-md`）；Function calling MVP——只读 `list_medicines`、写操作 `create_reminder`（**不直接落库** → `pendingAction` → 用户确认后 `POST /confirm` → `Reminder.createMany`）；确认卡通用 `fields` 键值对；取消仅前端改 `actionStatus`，**不**回传模型。前端流式用 **`fetch` 读 body**（勿走 axios 拦截器）；历史只传 `role`+`content`（可去掉开场白、滤空）。**未做**：更多工具（关/删提醒、家庭/药品/档案/打卡 CRUD 等）、权威医疗 RAG、读健康档案个性化、浏览器推送。敏感写操作（改密/换邮/头像）建议不做或强确认。可选清理：旧 `POST /chat` / `deepseek.chat` 前端已不用可删；Vite SSE 代理加固非必须（已能流式）。
 
 ### 仍用 mock / 未接
 
-- AI。
+- （无；AI 已接真 API，其余业务模块已接。）
 
 ### UI / 其它
 
@@ -100,7 +101,7 @@ https://readdy.cc/preview/d49be038-2eba-450c-bb6c-e42ec62a8b54/13522709/family
 ### 挂载 `routes/index.js`
 
 - `GET /health`（探活，非健康档案）
-- `/api/auth`、`/api/family-members`、`/api/health-profiles`、`/api/medicines`、`/api/reminders`、`/api/medicine-logs`
+- `/api/auth`、`/api/family-members`、`/api/health-profiles`、`/api/medicines`、`/api/reminders`、`/api/medicine-logs`、`/api/ai`
 - `/api/upload`：**保留**（`POST /image`），药品主路径已不依赖；以后其它模块可能用
 
 CORS：`FRONTEND_URL` + `credentials`。中间件：`middleware/auth.js` → `req.userId`。
@@ -144,6 +145,16 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 响应 camelCase。创建成功目前 body `code: 200`（与现有拦截器一致；以后若统一 201 需改 `request.js` 放行 2xx）。
 
+### AI API `/api/ai`（均需登录）
+
+| 方法 | 说明 |
+|------|------|
+| `POST /chat-stream` | **主路径**。SSE：`delta` / `status` / `pending` / `done` / `error`。Agent 最多 3 轮工具；每轮 `deepseek.chatStream`（拼正文 + `tool_calls`）。读工具当场执行并回填；写工具只发 `pending` 后 `end`，不写库 |
+| `POST /confirm` | body：`pendingAction`；服务端再校验 payload 后执行（目前仅 `create_reminder`） |
+| `POST /chat` | 旧非流式对照，前端已不用，可删 |
+
+工具定义与执行：`services/aiTools.js`。DeepSeek：`services/deepseek.js`（`SYSTEM_PROMPT`；环境变量见下）。断流监听用 **`res.on('close')`**，勿用 `req.on('close')`（POST 易误判）。`Cache-Control` 用逗号：`no-cache, no-transform`。
+
 ### 校验（`utils/validate.js`）
 
 用户名/密码/邮箱码；`isIdValid`；年龄；血型；标签数组；药品类型与日期 `isDateValid`（`YYYY-MM-DD`，打卡 `logDate`/query `date` 共用）；档案备注等；提醒：`isTimeValid`、`isDayValid`、`isDaysArrayValid`、`isBooleanValid`；设置：`isReminderBeforeValid`（0/5/10/15/30）。前端同名逻辑对齐（设置页校验用前端 `validate.js`）。
@@ -160,6 +171,7 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 8. 前端 `request.js` 拦截器目前只认 `body.code === 200`；打卡创建勿单独改 201 除非同步改拦截器。
 9. 周条 `loadWeekMap` 须用 `results[i].data`（整包响应还有一层 `data`），勿把 `loadDay` 并行 7 次（会竞态覆盖列表）。
 10. MySQL `BOOLEAN` ≡ `TINYINT(1)`；读出偏好后用 `Boolean(...)` 再给前端。头像上传失败/写库失败须 `deleteCosByUrl(newUrl)` 防 COS 垃圾。
+11. AI SSE：浏览器用 `fetch` + `ReadableStream`，勿用 axios；客户端断开看 `res.on('close')`。写操作必须二次确认；药名以 DB `Medicine.findById` 为准，不以模型瞎编名为准。
 
 ---
 
@@ -177,15 +189,16 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 ### 环境变量
 
-见 `backend/.env.example`：`DB_*`、`JWT_SECRET`、`REDIS_URL`、`FRONTEND_URL`、`RESEND_*`、`TENCENT_SECRET_*` / `TENCENT_COS_*`。
+见 `backend/.env.example`：`DB_*`、`JWT_SECRET`、`REDIS_URL`、`FRONTEND_URL`、`RESEND_*`、`TENCENT_SECRET_*` / `TENCENT_COS_*`、`DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL`。**勿把真实 Key 写入文档或提交 `.env`。**
 
 ---
 
 ## 8. 下一步
 
-1. AI 模块；用户协议 / 隐私政策正文（设置页按钮暂空）。
-2. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
-3. 可选：可删无用 `mocks/dashboard.js`、`useMedicineCheckin.js`；提醒重复校验；到点推送 / 浏览器通知（才真正用到提醒 `enabled` 与用户通知偏好）；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx；药品/用户建表 SQL 收入本仓文档；Dashboard Stats 无安排时显示 `-` 而非 `0/0`。
+1. **AI 未完（优先，建议新开会话按块做）**：扩展 function calling（关/删提醒、查提醒、家庭成员、药品、档案、打卡等；敏感设置慎做）；可选清理旧 `/chat`；再往后：健康档案个性化、医疗 RAG。
+2. 用户协议 / 隐私政策正文（设置页按钮暂空）。
+3. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
+4. 可选：可删无用 `mocks/dashboard.js`、`useMedicineCheckin.js`；提醒重复校验；到点推送 / 浏览器通知（才真正用到提醒 `enabled` 与用户通知偏好）；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx；药品/用户建表 SQL 收入本仓文档；Dashboard Stats 无安排时显示 `-` 而非 `0/0`。
 
 ---
 
@@ -205,20 +218,22 @@ AI_CONTEXT.md
 frontend/vite.config.js
 frontend/src/router/index.js          ← 勿改结构
 frontend/src/stores/user.js           ← 含 profile/settings/password/email/avatar
-frontend/src/api/{request,auth,family,health,medicine,reminder,medicineLog}.js
-frontend/src/utils/{validate,date,medicine,navigation}.js
-frontend/src/views/{Dashboard,Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail,Reminders,Checkin,Settings}View.vue
+frontend/src/api/{request,auth,family,health,medicine,reminder,medicineLog,ai}.js
+frontend/src/utils/{validate,date,medicine,navigation,markdown}.js
+frontend/src/views/{Dashboard,Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail,Reminders,Checkin,Ai,Settings}View.vue
 frontend/src/components/home/{StatsCards,TodayMedicineTimeline,ExpiringAlert,QuickActions,AiBanner}.vue
 frontend/src/components/layout/{AppLayout,Sidebar}.vue
 frontend/src/composables/useInView.js            ← Landing / Feedback 入场；保留
 frontend/src/composables/useMedicineCheckin.js   ← 已无引用，可删
 frontend/src/components/{AuthModal,CaptchaField,ConfirmModal,UserAvatar}.vue
 frontend/src/mocks/dashboard.js                 ← 已无引用，可删
-backend/routes/{index,auth,family,health,medicine,reminder,medicineLog,upload}Routes.js
-backend/controllers/{auth,family,health,medicine,reminder,medicineLog}Controller.js
+backend/routes/{index,auth,family,health,medicine,reminder,medicineLog,upload,ai}Routes.js
+backend/controllers/{auth,family,health,medicine,reminder,medicineLog,ai}Controller.js
+backend/services/{deepseek,aiTools}.js           ← AI；勿提交真实 API Key
 backend/models/{User,FamilyMember,HealthProfile,Medicine,Reminder,MedicineLog}.js
 backend/middleware/auth.js
 backend/utils/{validate,date,upload,cosUpload,deleteCos,tencentCos,emailCode,mail,captcha}.js
 backend/config/{db,redis}.js
 backend/.env.example
 ```
+
