@@ -60,7 +60,7 @@ const createReminder = {
     function: {
       name: 'create_reminder',
       description:
-        '创建用药提醒。须先 list_medicines 拿到真实 medicineId。days 为 0-6 的数组（0=周日）；time 为 HH:MM。直接调用本工具，由系统确认卡执行；不要口头二次确认，不要声称已成功。',
+        '创建用药提醒。days 为 0-6 的数组（0=周日）；time 为 HH:MM。创建前须 list_medicines 拿真实 medicineId。若用户指定了服用者，或该药品有归属 memberId：须先 list_health_profiles 做过敏/禁忌/慎用检查；高风险勿直接调用（见系统用药安全规则）。提醒不挂成员。直接调用，由确认卡执行。',
       parameters: {
         type: 'object',
         properties: {

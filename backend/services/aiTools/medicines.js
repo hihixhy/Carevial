@@ -49,7 +49,7 @@ const createMedicine = {
     function: {
       name: 'create_medicine',
       description:
-        '添加药品到药箱（仅文字信息：名称、类型、有效期等）。不支持上传或设置药品照片；若用户要求传图，应说明请到「药品」页面自行上传，仍可先添加无照片的药品。指定归属成员时先 list_family_members；不传 memberId 表示家庭公用。直接调用本工具，由系统确认卡执行；不要口头二次确认，不要声称已成功。',
+        '添加药品到药箱（仅文字信息：名称、类型、有效期等）。不支持上传或设置药品照片；若用户要求传图，应说明请到「药品」页面自行上传，仍可先添加无照片的药品。指定归属成员时先 list_family_members；有成员时还须先 list_health_profiles，高风险勿直接调用（见系统用药安全规则）。不传 memberId表示家庭公用。直接调用，由确认卡执行；勿口头确认、勿声称已成功。',
       parameters: {
         type: 'object',
         properties: {

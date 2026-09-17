@@ -16,13 +16,13 @@ const listHealthProfiles = {
     function: {
       name: 'list_health_profiles',
       description:
-        '查询家庭成员健康档案（血型、过敏、慢性病、用药禁忌、备注）。用于了解健康情况，或更新档案前解析 memberId。与用药提醒无关。',
+        '查询家庭成员健康档案（血型、allergies过敏史、chronicConditions慢性病、contraindications用药禁忌、medicalNotes备注）。用药问答、为成员加药、改药品归属成员、为某人相关药设提醒前必须先调用本工具；可选 memberId 筛某一成员，称呼不清时先 list_family_members。更新档案前也用本工具核对 memberId。',
       parameters: {
         type: 'object',
         properties: {
           memberId: {
             type: 'integer',
-            description: '可选。家庭成员ID；不传则返回全部'
+            description: '可选。家庭成员真实 ID；已知就传，缩小结果。不传则返回全部成员档案。'
           }
         },
         additionalProperties: false

@@ -99,7 +99,11 @@ const sendMessage = async (text) => {
         const msg = findMessage(assistantId)
         if (!msg) return
         msg.statusText = ''
-        msg.content = reply || ''
+        if (!msg.content) {
+          msg.content = reply || ''
+        } else if (reply) {
+          msg.content += '\n\n' + reply
+        }
         msg.pendingAction = pendingAction
         msg.actionStatus = pendingAction ? 'pending' : null
         msg.streaming = false
