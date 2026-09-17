@@ -482,7 +482,9 @@ onMounted(async () => {
                 {{
                   med.expiryStatus === 'expired'
                     ? '已过期'
-                    : `${diffDaysFromToday(med.expiryDate)}天后过期`
+                    : diffDaysFromToday(med.expiryDate) === 0
+                      ? '今天过期'
+                      : `${diffDaysFromToday(med.expiryDate)}天后过期`
                 }}
               </span>
             </div>

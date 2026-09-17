@@ -1,6 +1,6 @@
 # Carevial 项目记忆（给后续 AI）
 
-> 新对话先读本文件再改代码。更新日期：**2026-09-15**。有重大决策时同步更新。  
+> 新对话先读本文件再改代码。更新日期：**2026-09-17**。有重大决策时同步更新。  
 > 对话备份：[Carevial 开发主线](0ab0c5b3-7d02-46d3-ba0b-41246392c493)；AI 助手会话：[AI 流式与工具](55162c78-2c0f-45d5-a2c1-2eff3b37f7de)（agent-transcripts）。
 
 ---
@@ -67,12 +67,27 @@
 - **鉴权**：HttpOnly Cookie `token`（无 localStorage）。Pinia `stores/user.js`。`AuthModal`（密码/验证码登录；注册要图形码+邮箱码）。`CaptchaField` 服务端出图。校验在 `utils/validate.js`（前后端对齐）。
 - **家庭**：`FamilyView` + `/api/family-members`。一套表单 + `editingId`。创建成员事务内插空 `health_profiles`；删成员 CASCADE 档案。有关联药时提示变「家庭公用」（依赖 `medicines.member_id ON DELETE SET NULL`）。
 - **健康档案**：`FamilyHealthView` + `/api/health-profiles`。列表 JOIN 一次拿齐；更新用 **`memberId`**。字段均可选。
-- **药品（2026-09-09 已完成）**：列表/筛选/添加/编辑/删除/详情；详情可编辑（`?edit=id` 打开列表弹窗）与删除。照片：**FormData 随药品 create/update 上传**（字段名 `file`；清空传 `clearPhoto=1`），不再走独立前端 upload API。本地 FileReader 仅预览。COS：`cosUpload` + `deleteCos`（写库成功删旧图；失败删新图）。展示用 `calcExpiryStatus(expiry_date)` **实时算**；库列 `expiry_status` 可写但不作展示依据（暂无定时刷新）。类型：`otc` / `prescription` / `health`。无库存字段。
+- **药品（2026-09-09 已完成）**：列表/筛选/添加/编辑/删除/详情；详情可编辑（`?edit=id` 打开列表弹窗）与删除。照片：**FormData 随药品 create/update 上传**（字段名 `file`；清空传 `clearPhoto=1`），不再走独立前端 upload API。本地 FileReader 仅预览。COS：`cosUpload` + `deleteCos`（写库成功删旧图；失败删新图）。展示用 `calcExpiryStatus(expiry_date)` **实时算**；库列 `expiry_status` 可写但不作展示依据（暂无定时刷新）。类型：`otc` / `prescription` / `healthcare`（以 `validate.isMedicineTypeValid` 为准，勿写 `health`）。无库存字段。
 - **提醒（2026-09-10 已完成）**：`RemindersView` + `/api/reminders`。**一天一行**；字段名一律 **`days`**（0–6 = JS `getDay()`，0=周日）。创建传 `days` **数组**（事务 `createMany`）；编辑/开关传单个 `days`。无成员字段。列表按所选日筛选，同日内按 `time` 排。药品详情「关联提醒」：`GET /reminders/medicine/:medicineId`，前端按**周一→周日**再按时间排（`(days + 6) % 7`）。表单 `addError`/`editError` + deep `watch` 清空。删药依赖 `reminders.medicine_id ON DELETE CASCADE`。暂无重复（同药+同日+同时）校验、无推送。
 - **打卡（2026-09-11 已完成）**：`CheckinView` + `/api/medicine-logs`。横条为**今天 ±3 共 7 个日历日**（不是周一～周日周历）。列表 = 该日周几匹配的提醒（**不过滤 `enabled`**：`enabled` 只表示以后要不要通知）+ 是否已打卡。打卡 `POST`（body：`reminderId`、`logDate`），取消 `DELETE /:id`（用返回的 `logId`）。有行 = 已服、`status='taken'`；无行 = 未打卡。周条进度对 7 天各调一次 `GET ?date=`。`item.checked`（布尔）与汇总 `checkedCount`（数字）勿混名。
 - **Dashboard（2026-09-11 已完成）**：`DashboardView` **状态提升**——父组件 `Promise.all` 拉齐 `medicines` / `members` / 今日 `medicine-logs`，子组件只收 props。`StatsCards`（药品数、家人数、今日打卡、即将过期数）、`TodayMedicineTimeline`（按上午/下午/晚上分组；`emit('toggle')` → 父组件 `addLog`/`deleteLog` 再刷新）、`ExpiringAlert`（只筛 `expiryStatus === 'expiring'`，按 `diffDaysFromToday(expiryDate)` 排序；`memberName || '家庭公用'`）；`QuickActions` / `AiBanner` 纯跳转。与打卡页同源云端。日期：`utils/date.js`（dayjs + `zh-cn`：`getTodayDateStr`、`getDateLine`、`getWeekdayLabel`、`diffDaysFromToday`）。已不用 `useMedicineCheckin` / `mocks/dashboard.js`（仓库里若还在可删）。
 - **设置（2026-09-13 已完成）**：`SettingsView` + 扩展 `/api/auth`。改用户名 `PATCH /profile`；通知偏好 `PATCH /settings`（`notificationEnabled` / `soundEnabled` / `reminderBeforeMinutes`∈`{0,5,10,15,30}`，存 `users` 表）；改密 `PATCH /password`；改邮 `POST /change-email`（发码 `purpose: change_email` + 图形码，验证码绑**新邮箱**，提交需当前密码；`checkCode` 成功后再 `consumeCode`）；头像 `POST /avatar`（`uploadSingle`，字段名 `file`，COS，写库成功删旧图）。登录与 `/me` 经 `formatUser` 返回 camelCase 含上述字段。Pinia `stores/user.js` 成功后写回 `user`。`UserAvatar`：有 `avatarUrl` 用图，否则用户名首字母；设置页与 `Sidebar` 共用。关通知时前端**只禁用**声音开关，**不**把 `soundEnabled` 改成 false。已去掉：震动、语言/时间格式/每周起始日、清除本地数据；用户协议/隐私政策 UI 保留但未实现。错误约定：表单校验 → 行内 `error`；接口失败 → `ElMessage`。验证码倒计时：`watch(countdown)` + `setTimeout` 链（AuthModal 与设置页统一此写法）。暂无浏览器推送 / `Notification` 权限（偏好先入库，到点提醒以后再接）。
-- **AI 助手（2026-09-15 · MVP 进行中，未完）**：`AiView` + `/api/ai`。模型 **DeepSeek**（`deepseek-flash`，axios 调官方 API，**不**换 Python）。**已完成**：流式对话（SSE）+ Markdown（`marked` + `dompurify`，样式 `.ai-md`）；Function calling MVP——只读 `list_medicines`、写操作 `create_reminder`（**不直接落库** → `pendingAction` → 用户确认后 `POST /confirm` → `Reminder.createMany`）；确认卡通用 `fields` 键值对；取消仅前端改 `actionStatus`，**不**回传模型。前端流式用 **`fetch` 读 body**（勿走 axios 拦截器）；历史只传 `role`+`content`（可去掉开场白、滤空）。**未做**：更多工具（关/删提醒、家庭/药品/档案/打卡 CRUD 等）、权威医疗 RAG、读健康档案个性化、浏览器推送。敏感写操作（改密/换邮/头像）建议不做或强确认。可选清理：旧 `POST /chat` / `deepseek.chat` 前端已不用可删；Vite SSE 代理加固非必须（已能流式）。
+- **AI 助手（2026-09-17 · CRUD 工具已齐，可收尾）**：`AiView` + `/api/ai`。模型 **DeepSeek**（`deepseek-flash`，axios 调官方 API，**不**换 Python）。**已完成**：流式 SSE + Markdown（`marked` + `dompurify`，`.ai-md`）；Function calling **注册表模式**（见下）；确认卡通用 `fields`；取消仅前端改 `actionStatus`，**不**回传模型。前端流式用 **`fetch` 读 body**（勿走 axios）；历史只传 `role`+`content`（可去开场白、滤空）。旧 `POST /chat` / `deepseek.chat` **已删**，仅 `/chat-stream` + `/confirm`。
+
+  **工具架构**：`backend/services/aiTools/`（目录 + `index.js` 注册表）。域文件：`family.js` / `health.js` / `medicines.js` / `reminders.js` / `checkin.js`。每个工具对象：`name`、`kind`（`read`|`write`）、`definition`、读有 `run`、写有 `failHint` + `buildPending` + `execute`。`index` 对外：`TOOL_DEFINITIONS`、`isWriteTool`、`runReadTool`、`buildPending`、`executeConfirmedAction`、`getFailHint`。加工具只改域文件 + `SYSTEM_PROMPT`（新域再改 `index` 的 `require`）；**controller 不再按工具名 if**。
+
+  **已有工具**：
+  | 域 | 读 | 写（均 pending → confirm） |
+  |----|----|---------------------------|
+  | 家庭 | `list_family_members` | `create_family_member`、`update_family_member`（无删） |
+  | 档案 | `list_health_profiles` | `update_health_profile`（无独立创建/删除；加人时已建空档案） |
+  | 药品 | `list_medicines` | `create_medicine`、`update_medicine`（**无照片**；`touchPhoto: false`；无删） |
+  | 提醒 | `list_reminders` | `create_reminder`（`days` 数组→多行）、`update_reminder`（`days` 单个）、`delete_reminder` |
+  | 打卡 | `list_day_checkins` | `add_checkin`、`cancel_checkin`（须 `logId`+`logDate`；`logDate`≡list 的 `date`） |
+
+  **约定**：写操作不直接落库 → `pendingAction` → `POST /confirm` 再 `buildPending` 校验后 `execute`；一次 SSE 成功写工具只出**一张**确认卡；提醒与成员无关；可选字段清空用 `args.x === undefined` 区分「未传」与「传空」；药品类型 `prescription`\|`otc`\|`healthcare`。`SYSTEM_PROMPT`（`deepseek.js`）含可用工具、能力边界（不删成员/药/档案、不改设置个人信息、不传图等）、写操作规则、数据关系。
+
+  **未做 / 下一会话**：`list_expiring_medicines` / 今日摘要等只读增强；医疗 RAG；浏览器推送；AI 删药/删成员（不做）；改密换邮头像（不做）。
 
 ### 仍用 mock / 未接
 
@@ -149,11 +164,10 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 | 方法 | 说明 |
 |------|------|
-| `POST /chat-stream` | **主路径**。SSE：`delta` / `status` / `pending` / `done` / `error`。Agent 最多 3 轮工具；每轮 `deepseek.chatStream`（拼正文 + `tool_calls`）。读工具当场执行并回填；写工具只发 `pending` 后 `end`，不写库 |
-| `POST /confirm` | body：`pendingAction`；服务端再校验 payload 后执行（目前仅 `create_reminder`） |
-| `POST /chat` | 旧非流式对照，前端已不用，可删 |
+| `POST /chat-stream` | **主路径**。SSE：`delta` / `status` / `pending` / `done` / `error`。Agent 最多 3 轮工具；每轮 `deepseek.chatStream`（拼正文 + `tool_calls`）。读工具当场执行并 `role:tool` 回填；写工具 `buildPending` 成功则发 `pending` 后 `end`（不写库）；校验失败则 tool 回填 `{ok:false,error,hint}` 继续下一轮 |
+| `POST /confirm` | body：`pendingAction`；`isWriteTool(type)` → 再 `buildPending(userId, type, payload)` → `executeConfirmedAction(rebuilt.pendingAction)` |
 
-工具定义与执行：`services/aiTools.js`。DeepSeek：`services/deepseek.js`（`SYSTEM_PROMPT`；环境变量见下）。断流监听用 **`res.on('close')`**，勿用 `req.on('close')`（POST 易误判）。`Cache-Control` 用逗号：`no-cache, no-transform`。
+工具：`services/aiTools/`（勿再写单文件 `aiTools.js`）。DeepSeek：`services/deepseek.js`（仅 `chatStream` + `SYSTEM_PROMPT`）。断流用 **`res.on('close')`**；`Cache-Control`：`no-cache, no-transform`。
 
 ### 校验（`utils/validate.js`）
 
@@ -171,7 +185,7 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 8. 前端 `request.js` 拦截器目前只认 `body.code === 200`；打卡创建勿单独改 201 除非同步改拦截器。
 9. 周条 `loadWeekMap` 须用 `results[i].data`（整包响应还有一层 `data`），勿把 `loadDay` 并行 7 次（会竞态覆盖列表）。
 10. MySQL `BOOLEAN` ≡ `TINYINT(1)`；读出偏好后用 `Boolean(...)` 再给前端。头像上传失败/写库失败须 `deleteCosByUrl(newUrl)` 防 COS 垃圾。
-11. AI SSE：浏览器用 `fetch` + `ReadableStream`，勿用 axios；客户端断开看 `res.on('close')`。写操作必须二次确认；药名以 DB `Medicine.findById` 为准，不以模型瞎编名为准。
+11. AI SSE：浏览器用 `fetch` + `ReadableStream`，勿用 axios；客户端断开看 `res.on('close')`。写操作必须二次确认；药名/成员名以 DB 为准。打卡归属日 `log_date`≠`taken_at`；取消打卡参数 `logDate` 与 list 的 `date` 同义。Update 合并：可清空字段用 `=== undefined`，勿用 `isNotEmpty(args.x)` 判断「是否传了」（否则无法清空）。`create_reminder` 的 `days` 为数组；`update_reminder` 的 `days` 为单个 0–6（`days=0` 周日时 `isNotEmpty(0)` 为 true，可用）。
 
 ---
 
@@ -195,7 +209,7 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 ## 8. 下一步
 
-1. **AI 未完（优先，建议新开会话按块做）**：扩展 function calling（关/删提醒、查提醒、家庭成员、药品、档案、打卡等；敏感设置慎做）；可选清理旧 `/chat`；再往后：健康档案个性化、医疗 RAG。
+1. **AI（CRUD 工具已齐，新开会话再开增强）**：可选只读 `list_expiring_medicines` / 今日摘要；医疗 RAG；浏览器推送。不做或慎做：AI 删药/删成员、改密换邮头像。
 2. 用户协议 / 隐私政策正文（设置页按钮暂空）。
 3. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
 4. 可选：可删无用 `mocks/dashboard.js`、`useMedicineCheckin.js`；提醒重复校验；到点推送 / 浏览器通知（才真正用到提醒 `enabled` 与用户通知偏好）；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx；药品/用户建表 SQL 收入本仓文档；Dashboard Stats 无安排时显示 `-` 而非 `0/0`。
@@ -229,7 +243,8 @@ frontend/src/components/{AuthModal,CaptchaField,ConfirmModal,UserAvatar}.vue
 frontend/src/mocks/dashboard.js                 ← 已无引用，可删
 backend/routes/{index,auth,family,health,medicine,reminder,medicineLog,upload,ai}Routes.js
 backend/controllers/{auth,family,health,medicine,reminder,medicineLog,ai}Controller.js
-backend/services/{deepseek,aiTools}.js           ← AI；勿提交真实 API Key
+backend/services/deepseek.js                    ← SYSTEM_PROMPT + chatStream；勿提交真实 API Key
+backend/services/aiTools/{index,family,health,medicines,reminders,checkin}.js  ← 工具注册表
 backend/models/{User,FamilyMember,HealthProfile,Medicine,Reminder,MedicineLog}.js
 backend/middleware/auth.js
 backend/utils/{validate,date,upload,cosUpload,deleteCos,tencentCos,emailCode,mail,captcha}.js

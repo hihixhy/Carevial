@@ -4,8 +4,9 @@ const {
   TOOL_DEFINITIONS,
   isWriteTool,
   runReadTool,
-  buildPendingCreateReminder,
-  executeConfirmedAction
+  buildPending,
+  executeConfirmedAction,
+  getFailHint
 } = require('../services/aiTools');
 
 const ALLOWED_ROLES = new Set(['user', 'assistant']);
@@ -61,138 +62,6 @@ const buildTimeHintMessage = () => {
     role: 'user',
     content: `【系统时间】今天是 ${now.format('YYYY-MM-DD')}，weekday=${weekday}（0=周日…6=周六）。若用户说「明天」，days 应使用 ${tomorrow}。此消息仅供计算日期，不要向用户复述。`
   };
-};
-
-exports.chat = async (req, res) => {
-  const parsed = parseMessages(req.body);
-  if (!parsed.ok) {
-    return res.status(400).json({
-      code: 400,
-      message: parsed.message,
-      data: null
-    });
-  }
-
-  try {
-    // 系统时间提示放最前面
-    const messages = [buildTimeHintMessage(), ...parsed.data];
-
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const message = await deepseek.chat(messages, {
-        tools: TOOL_DEFINITIONS
-      });
-      const toolCalls = message.tool_calls;
-
-      // 如果没有工具调用 -> 普通聊天，直接返回文字
-      if (!Array.isArray(toolCalls) || toolCalls.length === 0) {
-        const reply =
-          typeof message.content === 'string' && message.content.trim()
-            ? message.content.trim()
-            : '暂时没有更多内容可以回复。';
-        return res.status(200).json({
-          code: 200,
-          message: 'ok',
-          data: {
-            reply,
-            pendingAction: null
-          }
-        });
-      }
-
-      // 如果AI返回了tool_calls -> 有工具调用，把消息和tool_calls都存起来
-      messages.push({
-        role: 'assistant',
-        content: message.content ?? null,
-        tool_calls: toolCalls
-      });
-
-      for (const call of toolCalls) {
-        const name = call?.function?.name;
-        const callId = call?.id;
-        const args = parseToolArgs(call?.function?.arguments);
-
-        if (!name || !callId) {
-          return res.status(502).json({
-            code: 502,
-            message: '模型返回的工具调用格式无效',
-            data: null
-          });
-        }
-        if (args === null) {
-          return res.status(502).json({
-            code: 502,
-            message: '模型返回的工具参数不是合法JSON',
-            data: null
-          });
-        }
-
-        // 写操作,变成待确认，不写入数据库
-        if (isWriteTool(name)) {
-          if (name === 'create_reminder') {
-            const built = await buildPendingCreateReminder(req.userId, args);
-            if (!built.ok) {
-              // 不中断，告诉模型这次工具失败了
-              messages.push({
-                role: 'tool',
-                tool_call_id: callId,
-                content: JSON.stringify({
-                  ok: false,
-                  error: built.message,
-                  hint: '请先调用 list_medicines 核对药品 id 与名称，再重新调用 create_reminder'
-                })
-              });
-              continue;
-            }
-            return res.status(200).json({
-              code: 200,
-              message: 'ok',
-              data: {
-                reply: `准备执行：${built.pendingAction.summary}。请确认或取消。`,
-                pendingAction: built.pendingAction
-              }
-            });
-          }
-          return res.status(400).json({
-            code: 400,
-            message: `暂不支持的写操作：${name}`,
-            data: null
-          });
-        }
-
-        // 读操作，执行并把结果以role:tool回填
-        let result;
-        try {
-          result = await runReadTool(req.userId, name);
-        } catch (toolErr) {
-          result = { error: toolErr.message || '工具执行失败' };
-        }
-
-        messages.push({
-          role: 'tool',
-          tool_call_id: callId,
-          content: JSON.stringify(result)
-        });
-      }
-      // 进入下一轮
-    }
-
-    return res.status(200).json({
-      code: 200,
-      message: 'ok',
-      data: {
-        reply: '工具调用轮次过多，请把需求说得更具体一些后再试',
-        pendingAction: null
-      }
-    });
-  } catch (err) {
-    console.error('AI对话失败：', err);
-    const status = err.status || 500;
-    return res.status(status).json({
-      code: status,
-      message: err.message || '服务器错误，请稍后再试',
-      data: null
-    });
-  }
 };
 
 exports.chatStream = async (req, res) => {
@@ -277,32 +146,26 @@ exports.chatStream = async (req, res) => {
 
         // 写操作,变成待确认，不写入数据库
         if (isWriteTool(name)) {
-          if (name === 'create_reminder') {
-            const built = await buildPendingCreateReminder(req.userId, args);
-            if (!built.ok) {
-              // 不中断，告诉模型这次工具失败了
-              messages.push({
-                role: 'tool',
-                tool_call_id: callId,
-                content: JSON.stringify({
-                  ok: false,
-                  error: built.message,
-                  hint: '请先调用 list_medicines 核对药品 id 与名称，再重新调用 create_reminder'
-                })
-              });
-              continue;
-            }
-
-            send({
-              type: 'pending',
-              reply: `准备执行：${built.pendingAction.summary}。请确认或取消。`,
-              pendingAction: built.pendingAction
+          const built = await buildPending(req.userId, name, args);
+          if (!built.ok) {
+            // 不中断，告诉模型这次工具失败了
+            messages.push({
+              role: 'tool',
+              tool_call_id: callId,
+              content: JSON.stringify({
+                ok: false,
+                error: built.message,
+                hint: getFailHint(name)
+              })
             });
-            res.end();
-            return;
+            continue;
           }
 
-          send({ type: 'error', message: `暂不支持的写操作：${name}` });
+          send({
+            type: 'pending',
+            reply: `准备执行：${built.pendingAction.summary}。请确认或取消。`,
+            pendingAction: built.pendingAction
+          });
           res.end();
           return;
         }
@@ -314,7 +177,7 @@ exports.chatStream = async (req, res) => {
 
         let result;
         try {
-          result = await runReadTool(req.userId, name);
+          result = await runReadTool(req.userId, name, args);
         } catch (toolErr) {
           result = { error: toolErr.message || '工具执行失败' };
         }
@@ -350,6 +213,7 @@ exports.chatStream = async (req, res) => {
 
 exports.confirm = async (req, res) => {
   const pendingAction = req.body?.pendingAction;
+  const name = pendingAction?.type;
 
   if (!pendingAction || typeof pendingAction !== 'object') {
     return res.status(400).json({
@@ -358,7 +222,7 @@ exports.confirm = async (req, res) => {
       data: null
     });
   }
-  if (pendingAction.type !== 'create_reminder') {
+  if (!isWriteTool(name)) {
     return res.status(400).json({
       code: 400,
       message: '不支持的操作类型',
@@ -374,7 +238,7 @@ exports.confirm = async (req, res) => {
   }
 
   // 再校验一次payload，防止前端篡改
-  const rebuilt = await buildPendingCreateReminder(req.userId, pendingAction.payload);
+  const rebuilt = await buildPending(req.userId, name, pendingAction.payload);
   if (!rebuilt.ok) {
     return res.status(400).json({
       code: 400,
@@ -384,12 +248,7 @@ exports.confirm = async (req, res) => {
   }
 
   try {
-    const result = await executeConfirmedAction(req.userId, {
-      type: 'create_reminder',
-      summary: pendingAction.summary,
-      payload: rebuilt.pendingAction.payload
-    });
-
+    const result = await executeConfirmedAction(req.userId, rebuilt.pendingAction);
     if (!result.ok) {
       return res.status(400).json({
         code: 400,

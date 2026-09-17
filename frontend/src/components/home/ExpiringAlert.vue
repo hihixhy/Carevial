@@ -84,7 +84,11 @@ const urgentCount = computed(
               : 'bg-amber-50 text-amber-700'
           ]"
         >
-          {{ `${diffDaysFromToday(med.expiryDate)} 天` }}
+          {{
+            diffDaysFromToday(med.expiryDate) === 0
+              ? '今天'
+              : `${diffDaysFromToday(med.expiryDate)} 天`
+          }}
         </div>
       </router-link>
     </div>
