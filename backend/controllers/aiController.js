@@ -11,7 +11,7 @@ const {
 
 const ALLOWED_ROLES = new Set(['user', 'assistant']);
 // 工具调用轮次上限
-const MAX_TOOL_ROUNDS = 3;
+const MAX_TOOL_ROUNDS = 5;
 
 // 解析消息数组
 const parseMessages = (body) => {
@@ -103,6 +103,10 @@ exports.chatStream = async (req, res) => {
         onDelta: (text) => {
           if (closed) return;
           send({ type: 'delta', text });
+        },
+        onClearContent: () => {
+          if (closed) return;
+          send({ type: 'content_reset' });
         }
       });
 

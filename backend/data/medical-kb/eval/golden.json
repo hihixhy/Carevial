@@ -1,0 +1,92 @@
+[
+  {
+    "id": "g1",
+    "query": "布洛芬饭前还是饭后吃",
+    "expect": "hit",
+    "relevantIds": [
+      "meal-timing",
+      "openfda_ibuprofen_warnings_3",
+      "openfda_ibuprofen_pregnancy_or_breast_feeding_0",
+      "openfda_ibuprofen_ask_doctor_0",
+      "openfda_ibuprofen_dosage_and_administration_0"
+    ]
+  },
+  {
+    "id": "g2",
+    "query": "感冒在家怎么护理",
+    "expect": "hit",
+    "relevantIds": ["cold-home-care"]
+  },
+  {
+    "id": "g3",
+    "query": "发烧什么时候必须去医院",
+    "expect": "hit",
+    "relevantIds": ["fever-when-to-see-doctor"]
+  },
+  {
+    "id": "g4",
+    "query": "老人吃药要注意什么",
+    "expect": "hit",
+    "relevantIds": ["elder-medication"]
+  },
+  {
+    "id": "g5",
+    "query": "孕妇能不能自己乱吃药",
+    "expect": "hit",
+    "relevantIds": ["pregnant-medication"]
+  },
+  {
+    "id": "g6",
+    "query": "常见药物一起吃会不会冲突",
+    "expect": "hit",
+    "relevantIds": [
+      "common-drug-conflicts",
+      "openfda_naproxen_drug_interactions_15",
+      "openfda_naproxen_drug_interactions_0",
+      "openfda_naproxen_drug_interactions_3",
+      "openfda_metformin_adverse_reactions_1"
+    ]
+  },
+  {
+    "id": "g7",
+    "query": "小孩用药要注意什么",
+    "expect": "hit",
+    "relevantIds": ["child-medication"]
+  },
+  {
+    "id": "g8",
+    "query": "高血压日常要注意什么",
+    "expect": "hit",
+    "relevantIds": ["hypertension-daily"]
+  },
+  {
+    "id": "g9",
+    "query": "布洛芬有什么警告",
+    "expect": "hit",
+    "relevantIds": [
+      "openfda_ibuprofen_warnings_0",
+      "openfda_ibuprofen_warnings_1",
+      "openfda_ibuprofen_warnings_2",
+      "openfda_ibuprofen_warnings_3",
+      "openfda_ibuprofen_warnings_4"
+    ]
+  },
+  {
+    "id": "b1",
+    "query": "今天上证指数多少点",
+    "expect": "miss",
+    "relevantIds": []
+  },
+  {
+    "id": "b2",
+    "query": "怎么用量子波动速读治感冒",
+    "expect": "miss",
+    "relevantIds": []
+  },
+  {
+    "id": "b3",
+    "query": "给家里猫做绝育要注意什么",
+    "expect": "miss",
+    "relevantIds": []
+  }
+]

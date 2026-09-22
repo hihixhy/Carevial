@@ -3,8 +3,16 @@ const healthTools = require('./health');
 const medicineTools = require('./medicines');
 const reminderTools = require('./reminders');
 const checkinTools = require('./checkin');
+const ragTools = require('./rag');
 
-const tools = [...familyTools, ...healthTools, ...medicineTools, ...reminderTools, ...checkinTools];
+const tools = [
+  ...familyTools,
+  ...healthTools,
+  ...medicineTools,
+  ...reminderTools,
+  ...checkinTools,
+  ...ragTools
+];
 // 按工具名索引
 const byName = new Map(tools.map((t) => [t.name, t]));
 

@@ -95,6 +95,12 @@ const sendMessage = async (text) => {
         msg.statusText = message
       },
 
+      onClearContent: () => {
+        const msg = findMessage(assistantId)
+        if (!msg) return
+        msg.content = ''
+      },
+
       onPending: ({ reply, pendingAction }) => {
         const msg = findMessage(assistantId)
         if (!msg) return
@@ -167,9 +173,11 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl min-h-full flex flex-col">
-    <div class="flex-1 flex flex-col min-h-0">
-      <div class="px-2 md:px-3 py-4 md:py-6 space-y-4 md:space-y-5 min-h-0">
+  <div class="flex h-[calc(100dvh-56px)] min-h-0 w-full flex-col overflow-hidden lg:h-dvh">
+    <div class="min-h-0 flex-1 overflow-y-auto">
+      <div
+        class="mx-auto max-w-5xl space-y-4 px-4 pt-8 pb-4 md:space-y-5 md:px-6 md:pt-12 md:pb-6 lg:px-10 lg:pt-16"
+      >
         <div
           v-for="msg in messages"
           :key="msg.id"
@@ -281,9 +289,11 @@ const handleSubmit = () => {
 
         <div ref="messagesEndRef" />
       </div>
+    </div>
 
-      <div class="mt-auto sticky bottom-0 bg-background-100 flex-shrink-0">
-        <div v-if="messages.length === 1" class="px-2 md:px-3 pb-2 md:pb-3 flex flex-wrap gap-2">
+    <div class="w-full flex-shrink-0 bg-background-100">
+      <div class="mx-auto max-w-5xl px-4 pt-2 md:px-6 lg:px-10">
+        <div v-if="messages.length === 1" class="pb-2 md:pb-3 flex flex-wrap gap-2">
           <button
             v-for="(s, i) in suggestions"
             :key="i"
@@ -294,10 +304,7 @@ const handleSubmit = () => {
           </button>
         </div>
 
-        <form
-          class="px-2 md:px-3 pb-4 md:pb-6 flex items-center gap-3"
-          @submit.prevent="handleSubmit"
-        >
+        <form class="pb-4 md:pb-6 flex items-center gap-3" @submit.prevent="handleSubmit">
           <input
             v-model="input"
             type="text"

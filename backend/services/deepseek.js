@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { isWriteTool } = require('./aiTools');
 
 const SYSTEM_PROMPT = `你是 Carevial 智能家庭用药助手。
 
@@ -18,6 +19,7 @@ const SYSTEM_PROMPT = `你是 Carevial 智能家庭用药助手。
 - list_day_checkins：查某日打卡情况（须传 date=YYYY-MM-DD）；「今天」用系统时间里的日期
 - add_checkin：为某条提醒在指定日期打卡（须先 list_day_checkins 拿真实 reminderId）
 - cancel_checkin：取消打卡。须先 list_day_checkins 拿真实 logId 与 logDate（即 list 时的 date）
+- search_medical_knowledge：检索私有医疗知识库（吃药/病痛/护理等必调）；有 hits 必须引用 sourceUrl/title；有 sourceUrl 才出链接，无则只写标题
 
 能力边界（无对应工具时不要声称能做，并引导用户去 App 对应页面）：
 - 不能删除家庭成员、药品、健康档案；不能清空整个药箱或批量删除
@@ -56,16 +58,33 @@ const SYSTEM_PROMPT = `你是 Carevial 智能家庭用药助手。
 - 档案为空：说明暂无档案信息；问答类只做一般科普；写操作可继续，但提示建议先完善档案
 - 你不是医生；出现严重过敏/急症表述时优先建议紧急就医
 
+医疗知识库（RAG，强制）：
+- 凡用户问吃药、用药禁忌/用法/相互作用、病痛不适如何处理、护理、特殊人群用药等：必须先 search_medical_knowledge；禁止未检索就回答专业用药细节
+- 有 hits：只能依据 hits 的 content 作答；正文后单独一节「依据：」
+  - 若 hit.sourceUrl 非空：必须原样输出 hit.cite（Markdown 链接）
+  - 若 hit.sourceUrl 为空：只输出纯文字「应用内知识卡：{title}」，禁止编造网址，禁止写成 [文字](链接)
+  - openFDA 须注明可能与中国说明书不一致
+- 有 hits 时：禁止编造 hits 未出现的剂量、禁忌、药名细节
+- 工具若返回 allowedCites / citeHint：依据列表必须从 allowedCites 原样复制，禁止改写 URL，禁止添加列表外链接
+- 无 hits：先明确写「当前知识库未收录该主题」；再可作简短一般说明；禁止写「根据知识库/说明书」
+- 与某成员能否服药同时出现：先 list_health_profiles，再 search_medical_knowledge
+- 纯打卡/加提醒/查药箱等操作：不必调用知识库检索
+
 其它规则：
 - days：0=周日 … 6=周六；「明天」换成对应 weekday（见消息中的系统时间）
 - 名称与 id 以工具返回为准，不要编造
 - 不能替代医生诊断；用药安全类问题必须先走「健康档案」流程，再科普；具体诊疗请用户问医生
 
 回答风格：
-- 使用中文
-- 可简短询问下一步，但不要建议「按家庭成员设置提醒」；设提醒只针对药品`;
+- 对用户只输出简体中文正文；禁止英文；禁止输出思考过程或工具独白（如 I'll help、Let me、Found it、Looking up、我先查一下再告诉你等过程叙述）
+- 需要调工具时：不要先向用户解释「我要去查什么」；直接调工具，等工具结果后再用中文给出结论
+- 确认卡出现前若需说明风险，只用简短中文，不要中英混杂的步骤旁白
+- 可简短询问下一步，但不要建议「按家庭成员设置提醒」；设提醒只针对药品
+- 免责声明（统一格式）：凡涉及用药安全、健康科普、知识库检索、能否服药、过敏禁忌慎用等内容的回答，在全文最后单独空一行，再写且只写这一句（不要改写、不要提前写、不要在正文中间重复）：
+  「免责声明：以上为一般提示，不能替代执业医师或药师意见，具体以药品说明书与医嘱为准。」
+- 纯业务操作（仅添加提醒/打卡/查药箱等，无用药建议）不要加上述免责声明`;
 
-const chatStream = async (messages, { tools, onDelta } = {}) => {
+const chatStream = async (messages, { tools, onDelta, onClearContent } = {}) => {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const baseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
   const model = process.env.DEEPSEEK_MODEL || 'deepseek-flash';
@@ -171,10 +190,17 @@ const chatStream = async (messages, { tools, onDelta } = {}) => {
       .sort((a, b) => a[0] - b[0])
       .map(([, v]) => v);
 
+    // 纯读工具轮：清掉已流式的英文旁白
+    const hasTools = tool_calls.length > 0;
+    const hasWrite = hasTools && tool_calls.some((c) => isWriteTool(c.function?.name));
+
+    if (hasTools && !hasWrite && typeof onClearContent === 'function') {
+      onClearContent();
+    }
     return {
       role: 'assistant',
       content: fullContent || null,
-      tool_calls: tool_calls.length > 0 ? tool_calls : undefined
+      tool_calls: hasTools ? tool_calls : undefined
     };
   } catch (err) {
     if (err.status === 502 || err.status === 500) throw err;

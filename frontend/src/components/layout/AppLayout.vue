@@ -1,10 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
 import LogoMark from '../LogoMark.vue'
 
+const route = useRoute()
 const mobileMenuOpen = ref(false)
 const collapsed = ref(false)
+
+const isAiPage = computed(() => route.path.startsWith('/dashboard/ai'))
 </script>
 
 <template>
@@ -35,7 +39,10 @@ const collapsed = ref(false)
       class="h-screen overflow-hidden flex flex-col pt-[56px] lg:pt-0 transition-[margin] duration-300"
       :class="collapsed ? 'lg:ml-16' : 'lg:ml-[220px]'"
     >
-      <main class="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 lg:p-10 bg-background-100">
+      <main
+        class="flex-1 min-h-0 bg-background-100"
+        :class="isAiPage ? 'overflow-hidden p-0' : 'overflow-y-auto p-4 md:p-6 lg:p-10'"
+      >
         <RouterView />
       </main>
     </div>

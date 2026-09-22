@@ -102,6 +102,11 @@
 .ai-md p:last-child {
   margin-bottom: 0;
 }
+.ai-md a {
+  color: var(--color-primary-600, #2563eb);
+  text-decoration: underline;
+  word-break: break-all;
+}
 .ai-md ul,
 .ai-md ol {
   margin: 0.35em 0;

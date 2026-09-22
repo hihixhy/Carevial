@@ -4,7 +4,7 @@ export const confirmAction = (pendingAction) =>
   request.post('/ai/confirm', { pendingAction }, { timeout: 30000 })
 
 export const chatWithAiStream = async (messages, handlers = {}) => {
-  const { onDelta, onDone, onPending, onStatus, onError } = handlers
+  const { onDelta, onDone, onPending, onStatus, onClearContent, onError } = handlers
 
   const res = await fetch('/api/ai/chat-stream', {
     method: 'POST',
@@ -61,6 +61,8 @@ export const chatWithAiStream = async (messages, handlers = {}) => {
           onDelta(payload.text || '')
         } else if (payload.type === 'status' && typeof onStatus === 'function') {
           onStatus(payload.message || '')
+        } else if (payload.type === 'content_reset' && typeof onClearContent === 'function') {
+          onClearContent()
         } else if (payload.type === 'pending' && typeof onPending === 'function') {
           onPending({
             reply: payload.reply || '',
