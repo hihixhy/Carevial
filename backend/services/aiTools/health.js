@@ -89,7 +89,7 @@ const updateHealthProfile = {
           },
           medicalNotes: {
             type: 'string',
-            description: '备注，不超过1000字符；不传保持原值；要清空请传空字符串'
+            description: '备注，不超过500字符；不传保持原值；要清空请传空字符串'
           }
         },
         required: ['memberId']
@@ -150,7 +150,7 @@ const updateHealthProfile = {
       };
     }
     if (!validate.isMedicalNotesValidIfPresent(medicalNotes)) {
-      return { ok: false, message: '备注格式无效，不超过1000字符' };
+      return { ok: false, message: '备注格式无效，不超过500字符' };
     }
 
     return {

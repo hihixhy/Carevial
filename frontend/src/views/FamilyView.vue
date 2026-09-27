@@ -88,16 +88,16 @@ const validateForm = () => {
     error.value = '请输入姓名'
     return false
   }
-  if (name.length > 50) {
-    error.value = '姓名不能超过50个字符'
+  if (name.length > 20) {
+    error.value = '姓名不能超过20个字符'
     return false
   }
   if (!relationship) {
     error.value = '请输入关系'
     return false
   }
-  if (relationship.length > 50) {
-    error.value = '关系不能超过50个字符'
+  if (relationship.length > 20) {
+    error.value = '关系不能超过20个字符'
     return false
   }
   if (!isAgeValidIfPresent(age)) {

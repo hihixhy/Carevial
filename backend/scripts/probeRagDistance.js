@@ -1,6 +1,6 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-const { searchMedicalKnowledge } = require('../../services/medicalRag');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const { searchMedicalKnowledge } = require('../services/medicalRag');
 
 const queries = [
   // 应强相关（中文卡 / 种子药）

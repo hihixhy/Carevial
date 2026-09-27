@@ -1,9 +1,9 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const fs = require('fs');
 const axios = require('axios');
 const { ChromaClient } = require('chromadb');
-const { embedTexts } = require('../../services/embeddings');
+const { embedTexts } = require('../services/embeddings');
 
 // 种子药表
 const OPENFDA_SEED_DRUGS = [
@@ -115,7 +115,7 @@ const chunkText = (text, size = 700, hardMax = 1000, overlapSentences = 1) => {
 
 // 读取所有知识卡
 const loadTopicCards = () => {
-  const dir = path.join(__dirname, '../medical-kb/topics');
+  const dir = path.join(__dirname, '../data/medical-kb/topics');
   // 读取目录下所有json文件
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
   if (!files.length) throw new Error('topics目录下没有json文件');

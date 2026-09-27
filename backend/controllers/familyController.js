@@ -8,14 +8,14 @@ const parseMemberBody = (body) => {
   const age = body.age;
   const relationship = String(body.relationship || '').trim();
 
-  if (!validate.isNotEmpty(name) || name.length > 50) {
-    return { ok: false, message: '姓名不能为空且不超过50个字符' };
+  if (!validate.isNotEmpty(name) || name.length > 20) {
+    return { ok: false, message: '姓名不能为空且不超过20个字符' };
   }
   if (!validate.isAgeValidIfPresent(age)) {
     return { ok: false, message: '年龄需为0-120之间的整数' };
   }
-  if (!validate.isNotEmpty(relationship) || relationship.length > 50) {
-    return { ok: false, message: '关系不能为空且不超过50个字符' };
+  if (!validate.isNotEmpty(relationship) || relationship.length > 20) {
+    return { ok: false, message: '关系不能为空且不超过20个字符' };
   }
 
   return {

@@ -58,7 +58,7 @@ const createMedicine = {
           specification: { type: 'string', description: '药品规格，不超过100个字符' },
           expiryDate: { type: 'string', description: '有效期，格式 YYYY-MM-DD' },
           dosage: { type: 'string', description: '用法用量，不超过200个字符' },
-          indications: { type: 'string', description: '适应症，不超过255个字符' },
+          indications: { type: 'string', description: '适应症，不超过300个字符' },
           medicineType: {
             type: 'string',
             description:
@@ -105,8 +105,8 @@ const createMedicine = {
     if (!validate.isOptionalStringMax(dosage, 200)) {
       return { ok: false, message: '用法用量不超过200个字符' };
     }
-    if (!validate.isOptionalStringMax(indications, 255)) {
-      return { ok: false, message: '适应症不超过255个字符' };
+    if (!validate.isOptionalStringMax(indications, 300)) {
+      return { ok: false, message: '适应症不超过300个字符' };
     }
     if (!validate.isMedicineTypeValid(medicineType)) {
       return { ok: false, message: '药品类型无效，只能是 prescription|otc|healthcare' };
@@ -206,7 +206,7 @@ const updateMedicine = {
           dosage: { type: 'string', description: '用法用量，不超过200个字符；要清空请传空字符串' },
           indications: {
             type: 'string',
-            description: '适应症，不超过255个字符；要清空请传空字符串'
+            description: '适应症，不超过300个字符；要清空请传空字符串'
           },
           medicineType: {
             type: 'string',
@@ -281,7 +281,7 @@ const updateMedicine = {
       return { ok: false, message: '用法用量不超过200个字符' };
     }
     if (!validate.isOptionalStringMax(indications, 255)) {
-      return { ok: false, message: '适应症不超过255个字符' };
+      return { ok: false, message: '适应症不超过300个字符' };
     }
     if (!validate.isMedicineTypeValid(medicineType)) {
       return { ok: false, message: '药品类型无效，只能是 prescription|otc|healthcare' };

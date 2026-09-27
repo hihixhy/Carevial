@@ -19,7 +19,7 @@ const parseMessages = (body) => {
   if (!Array.isArray(messages) || messages.length === 0) {
     return { ok: false, message: 'messages必须是非空数组' };
   }
-  if (messages.length > 20) {
+  if (messages.length > 40) {
     return { ok: false, message: 'messages过多，请减少历史轮次' };
   }
 

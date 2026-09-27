@@ -1,8 +1,31 @@
 import request from './request'
 
+// 获取对话列表
+export const getConversations = () => request.get('/ai/conversations')
+// 创建对话
+export const createConversation = (body) => request.post('/ai/conversations', body)
+// 获取对话详情
+export const getConversation = (publicId) => request.get(`/ai/conversations/${publicId}`)
+// 重命名对话标题
+export const renameConversation = (publicId, title) =>
+  request.patch(`/ai/conversations/${publicId}`, { title })
+// 删除对话
+export const deleteConversation = (publicId) => request.delete(`/ai/conversations/${publicId}`)
+// 添加消息
+export const appendMessage = (publicId, body) =>
+  request.post(`/ai/conversations/${publicId}/messages`, body)
+// 更新消息确认卡状态
+export const updateMessageActionStatus = (publicId, messageId, actionStatus) =>
+  request.patch(`/ai/conversations/${publicId}/messages/${messageId}`, { actionStatus })
+// 生成对话标题
+export const generateConversationTitle = (publicId) =>
+  request.patch(`/ai/conversations/${publicId}/generate-title`, null, { timeout: 30000 })
+
+// 确认写操作
 export const confirmAction = (pendingAction) =>
   request.post('/ai/confirm', { pendingAction }, { timeout: 30000 })
 
+// 与AI对话（流式）
 export const chatWithAiStream = async (messages, handlers = {}) => {
   const { onDelta, onDone, onPending, onStatus, onClearContent, onError } = handlers
 
@@ -22,7 +45,9 @@ export const chatWithAiStream = async (messages, handlers = {}) => {
     } catch {
       // 忽略
     }
-    throw new Error(message)
+    const err = new Error(message)
+    if (typeof onError === 'function') onError(err)
+    throw err
   }
 
   if (!res.body) {

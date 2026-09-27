@@ -84,6 +84,37 @@ const SYSTEM_PROMPT = `你是 Carevial 智能家庭用药助手。
   「免责声明：以上为一般提示，不能替代执业医师或药师意见，具体以药品说明书与医嘱为准。」
 - 纯业务操作（仅添加提醒/打卡/查药箱等，无用药建议）不要加上述免责声明`;
 
+// 非流式（生成标题等）
+const chat = async (messages, { systemPrompt, maxTokens = 64 } = {}) => {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const baseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
+  const model = process.env.DEEPSEEK_MODEL || 'deepseek-flash';
+
+  if (!apiKey) {
+    const err = new Error('未配置 DEEPSEEK_API_KEY');
+    err.status = 500;
+    throw err;
+  }
+
+  const payload = {
+    model,
+    messages: [...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []), ...messages],
+    stream: false,
+    max_tokens: maxTokens,
+    thinking: { type: 'disabled' }
+  };
+  const res = await axios.post(`${baseUrl}/chat/completions`, payload, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 30000
+  });
+
+  const text = res.data.choices?.[0]?.message?.content;
+  return typeof text === 'string' ? text.trim() : '';
+};
+
 const chatStream = async (messages, { tools, onDelta, onClearContent } = {}) => {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const baseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/$/, '');
@@ -211,5 +242,6 @@ const chatStream = async (messages, { tools, onDelta, onClearContent } = {}) => 
 };
 
 module.exports = {
+  chat,
   chatStream
 };

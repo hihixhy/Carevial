@@ -1,17 +1,12 @@
 <script setup>
-import { nextTick, ref, watch } from 'vue'
-import { chatWithAiStream, confirmAction } from '../api/ai'
+import { nextTick, ref, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { confirmAction } from '../api/ai'
 import { renderMarkdown } from '../utils/markdown'
+import { useAiStore } from '../stores/ai'
 
-const initialMessages = [
-  {
-    id: '1',
-    role: 'assistant',
-    content:
-      '你好！我是 Carevial 的 AI 助手。你可以直接告诉我你想做什么，或者你想了解什么，比如：\n\n• "帮我给爸爸设置每天早上8点吃降压药"\n• "阿莫西林和头孢有什么区别"\n\n我会帮你快速完成操作！',
-    timestamp: '刚刚'
-  }
-]
+const route = useRoute()
+const router = useRouter()
 
 const suggestions = [
   '帮我设置一个明天早上8点的提醒',
@@ -20,13 +15,57 @@ const suggestions = [
   '给妈妈添加维生素D'
 ]
 
-const messages = ref([...initialMessages])
+const aiStore = useAiStore()
+
+const messages = computed(() => aiStore.currentMessages)
+const isTyping = computed(() => aiStore.isTyping)
+
 const input = ref('')
-const isTyping = ref(false)
 // 防止待确认消息被连点
 const confirmingId = ref(null)
 const messagesEndRef = ref(null)
+// 草稿首条消息后 replace 路由时，跳过一次按路由重载，避免打断流式
+let skipRouteReload = false
 
+watch(
+  () => route.params.conversationId,
+  async (conversationId) => {
+    if (skipRouteReload) {
+      skipRouteReload = false
+      return
+    }
+    const id = typeof conversationId === 'string' ? conversationId : null
+    input.value = ''
+
+    try {
+      const result = await aiStore.syncFromRoute(id)
+
+      if (!id) {
+        // 草稿
+        return
+      }
+
+      if (!result.ok) {
+        router.replace({ name: 'ai' })
+        return
+      }
+
+      // 对话正在流式，不重新加载
+      if (aiStore.typingById[id]) {
+        return
+      }
+
+      // 正式对话,加载对话详情
+      await aiStore.loadConversationDetail(id)
+    } catch (err) {
+      ElMessage.error(err.message || '加载对话失败')
+      router.replace({ name: 'ai' })
+    }
+  },
+  { immediate: true }
+)
+
+// messages或isTyping变化时，滚动到消息底部
 watch(
   [messages, isTyping],
   async () => {
@@ -36,112 +75,30 @@ watch(
   { deep: true }
 )
 
-// 只把 role + content 传给后端；可去掉开场白，避免占额度
-// 并过滤掉空消息
-const buildHistoryForApi = () => {
-  return messages.value
-    .filter((m) => m.id !== '1')
-    .filter((m) => String(m.content || '').trim())
-    .map((m) => ({ role: m.role, content: m.content }))
-}
-
 const sendMessage = async (text) => {
-  const content = text.trim()
-  if (!content || isTyping.value) return
+  const content = String(text || '').trim()
+  if (!content || isTyping.value) return null
 
-  messages.value = [
-    ...messages.value,
-    {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: '刚刚'
-    }
-  ]
+  const wasDraft = aiStore.isDraft
   input.value = ''
 
-  // 先往messages数组添加一个占位消息，等后端流式返回内容后，再更新内容
-  const history = buildHistoryForApi()
-  const assistantId = (Date.now() + 1).toString()
-  messages.value = [
-    ...messages.value,
-    {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-      timestamp: '刚刚',
-      statusText: '',
-      streaming: true,
-      pendingAction: null,
-      actionStatus: null
-    }
-  ]
+  const result = await aiStore.sendMessage(content)
+  if (!result) return
 
-  isTyping.value = true
-
-  try {
-    await chatWithAiStream(history, {
-      onDelta: (piece) => {
-        const msg = findMessage(assistantId)
-        if (!msg) return
-        msg.statusText = ''
-        msg.content += piece
-      },
-
-      onStatus: (message) => {
-        const msg = findMessage(assistantId)
-        if (!msg) return
-        // 工具执行中：气泡里提示，仍算streaming
-        msg.statusText = message
-      },
-
-      onClearContent: () => {
-        const msg = findMessage(assistantId)
-        if (!msg) return
-        msg.content = ''
-      },
-
-      onPending: ({ reply, pendingAction }) => {
-        const msg = findMessage(assistantId)
-        if (!msg) return
-        msg.statusText = ''
-        if (!msg.content) {
-          msg.content = reply || ''
-        } else if (reply) {
-          msg.content += '\n\n' + reply
-        }
-        msg.pendingAction = pendingAction
-        msg.actionStatus = pendingAction ? 'pending' : null
-        msg.streaming = false
-      },
-
-      onDone: () => {
-        const msg = findMessage(assistantId)
-        if (!msg) return
-        msg.statusText = ''
-        msg.streaming = false
-      },
-
-      onError: (err) => {
-        ElMessage.error(err.message || 'AI请求失败，请稍后再试')
-      }
+  if (wasDraft) {
+    skipRouteReload = true
+    await router.replace({
+      name: 'ai-conversation',
+      params: { conversationId: result.publicId }
     })
-  } catch {
-    const msg = findMessage(assistantId)
-    if (msg && !msg.content) {
-      // 没内容，删掉空气泡
-      messages.value = messages.value.filter((m) => m.id !== assistantId)
-    } else if (msg) {
-      // 有内容，但出错，改为普通消息
-      msg.streaming = false
-    }
-  } finally {
-    isTyping.value = false
-    const msg = findMessage(assistantId)
-    if (msg) msg.streaming = false
   }
 }
 
+const handleSubmit = () => {
+  sendMessage(input.value)
+}
+
+// 根据id查找消息
 const findMessage = (id) => messages.value.find((m) => m.id === id)
 
 const onConfirmAction = async (msgId) => {
@@ -153,6 +110,11 @@ const onConfirmAction = async (msgId) => {
   try {
     const res = await confirmAction(msg.pendingAction)
     msg.actionStatus = 'done'
+    try {
+      await aiStore.updateMessageActionStatus(aiStore.activeId, msg.id, 'done')
+    } catch {
+      ElMessage.warning('已执行，但确认卡状态同步失败')
+    }
     ElMessage.success(res.message || '执行成功')
   } catch (err) {
     ElMessage.error(err.message || '确认失败，请稍后再试')
@@ -161,14 +123,15 @@ const onConfirmAction = async (msgId) => {
   }
 }
 
-const onCancelAction = (msgId) => {
+const onCancelAction = async (msgId) => {
   const msg = findMessage(msgId)
   if (!msg || msg.actionStatus !== 'pending') return
-  msg.actionStatus = 'cancelled'
-}
-
-const handleSubmit = () => {
-  sendMessage(input.value)
+  try {
+    await aiStore.updateMessageActionStatus(aiStore.activeId, msg.id, 'cancelled')
+    msg.actionStatus = 'cancelled'
+  } catch (err) {
+    ElMessage.error(err.message || '取消失败，请稍后再试')
+  }
 }
 </script>
 
@@ -243,7 +206,7 @@ const handleSubmit = () => {
                   <button
                     type="button"
                     class="flex-1 py-2.5 text-[13px] text-white bg-primary-500 hover:bg-primary-600 rounded-lg transition-colors cursor-pointer whitespace-nowrap font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                    :disabled="confirmingId === msg.id"
+                    :disabled="confirmingId === msg.id || !msg.persisted"
                     @click="onConfirmAction(msg.id)"
                   >
                     确认执行
@@ -251,7 +214,7 @@ const handleSubmit = () => {
                   <button
                     type="button"
                     class="flex-1 py-2.5 text-[13px] text-foreground-600 bg-white hover:bg-background-100 border border-background-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                    :disabled="confirmingId === msg.id"
+                    :disabled="confirmingId === msg.id || !msg.persisted"
                     @click="onCancelAction(msg.id)"
                   >
                     取消
@@ -278,7 +241,7 @@ const handleSubmit = () => {
 
             <p
               :class="[
-                'text-[11px] text-foreground-300 mt-1.5',
+                'text-[13px] text-foreground-300 mt-1.5',
                 msg.role === 'user' ? 'text-right mr-1' : 'ml-1'
               ]"
             >
@@ -293,7 +256,7 @@ const handleSubmit = () => {
 
     <div class="w-full flex-shrink-0 bg-background-100">
       <div class="mx-auto max-w-5xl px-4 pt-2 md:px-6 lg:px-10">
-        <div v-if="messages.length === 1" class="pb-2 md:pb-3 flex flex-wrap gap-2">
+        <div class="pb-2 md:pb-3 flex flex-wrap gap-2">
           <button
             v-for="(s, i) in suggestions"
             :key="i"

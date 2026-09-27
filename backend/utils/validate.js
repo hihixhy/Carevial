@@ -79,7 +79,7 @@ const isStringArrayValid = (arr, { maxItems = 20, maxLen = 50 } = {}) => {
 // 健康档案备注校验（有值时校验）
 const isMedicalNotesValidIfPresent = (notes) => {
   if (!isNotEmpty(notes)) return true;
-  return String(notes).trim().length <= 1000;
+  return String(notes).trim().length <= 500;
 };
 
 // 药品类型校验
@@ -132,6 +132,18 @@ const isReminderBeforeValid = (value) => {
   return [0, 5, 10, 15, 30].includes(n);
 };
 
+// 对话public_id校验
+const isPublicIdValid = (value) => {
+  if (!isNotEmpty(value)) return false;
+  return /^[a-f0-9]{32}$/i.test(String(value).trim());
+};
+
+// action_status校验
+const isActionStatusValidIfPresent = (value) => {
+  if (!isNotEmpty(value)) return true;
+  return ['pending', 'done', 'cancelled'].includes(String(value).trim());
+};
+
 module.exports = {
   isNotEmpty,
   isEmail,
@@ -151,5 +163,7 @@ module.exports = {
   isDayValid,
   isDaysArrayValid,
   isBooleanValid,
-  isReminderBeforeValid
+  isReminderBeforeValid,
+  isPublicIdValid,
+  isActionStatusValidIfPresent
 };

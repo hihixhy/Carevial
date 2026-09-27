@@ -187,8 +187,8 @@ const validateForm = () => {
     error.value = '药品规格不能超过100个字符'
     return false
   }
-  if (!isOptionalStringMax(editForm.value.indications, 255)) {
-    error.value = '适应症不能超过255个字符'
+  if (!isOptionalStringMax(editForm.value.indications, 300)) {
+    error.value = '适应症不能超过300个字符'
     return false
   }
   if (!isMedicineTypeValid(editForm.value.medicineType)) {

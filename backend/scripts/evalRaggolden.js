@@ -1,10 +1,10 @@
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-const { searchMedicalKnowledge } = require('../../services/medicalRag');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const { searchMedicalKnowledge } = require('../services/medicalRag');
 
 const K = 5;
-const goldenPath = path.join(__dirname, '../medical-kb/eval/golden.json');
+const goldenPath = path.join(__dirname, '../data/medical-kb/eval/golden.json');
 const cases = JSON.parse(fs.readFileSync(goldenPath, 'utf8'));
 
 (async () => {

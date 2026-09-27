@@ -53,6 +53,11 @@ const appChildren = [
     path: 'ai',
     name: 'ai',
     component: () => import('../views/AiView.vue')
+  },
+  {
+    path: 'ai/:conversationId',
+    name: 'ai-conversation',
+    component: () => import('../views/AiView.vue')
   }
 ]
 

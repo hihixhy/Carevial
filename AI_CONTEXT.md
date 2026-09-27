@@ -1,6 +1,6 @@
 # Carevial 项目记忆（给后续 AI）
 
-> 新对话先读本文件再改代码。更新日期：**2026-09-22**。有重大决策时同步更新。  
+> 新对话先读本文件再改代码。更新日期：**2026-09-26**。有重大决策时同步更新。  
 > 对话备份：[Carevial 开发主线](0ab0c5b3-7d02-46d3-ba0b-41246392c493)；AI 助手会话：[AI 流式与工具](55162c78-2c0f-45d5-a2c1-2eff3b37f7de)；医疗 RAG：[RAG 与评测](444cfceb-ed4b-4739-928b-ec4b4efe60dc)（agent-transcripts）。
 
 ---
@@ -53,7 +53,8 @@
 | `/dashboard/medicines/:id` | MedicineDetailView |
 | `/dashboard/reminders` | RemindersView |
 | `/dashboard/checkin` | CheckinView |
-| `/dashboard/ai` | AiView |
+| `/dashboard/ai` | AiView（草稿，无会话 id） |
+| `/dashboard/ai/:conversationId` | AiView（哈希会话） |
 | `/dashboard/settings` | SettingsView |
 
 守卫：未 `bootstrapped` 先 `/auth/me`；未登录 → `/` + `?redirect=`。`main.js`：**先 pinia 再 router**。预览站用 `/dashboard` 前缀，Vue 跳转必须带。
@@ -72,7 +73,23 @@
 - **打卡（2026-09-11 已完成）**：`CheckinView` + `/api/medicine-logs`。横条为**今天 ±3 共 7 个日历日**（不是周一～周日周历）。列表 = 该日周几匹配的提醒（**不过滤 `enabled`**：`enabled` 只表示以后要不要通知）+ 是否已打卡。打卡 `POST`（body：`reminderId`、`logDate`），取消 `DELETE /:id`（用返回的 `logId`）。有行 = 已服、`status='taken'`；无行 = 未打卡。周条进度对 7 天各调一次 `GET ?date=`。`item.checked`（布尔）与汇总 `checkedCount`（数字）勿混名。
 - **Dashboard（2026-09-11 已完成）**：`DashboardView` **状态提升**——父组件 `Promise.all` 拉齐 `medicines` / `members` / 今日 `medicine-logs`，子组件只收 props。`StatsCards`（药品数、家人数、今日打卡、即将过期数）、`TodayMedicineTimeline`（按上午/下午/晚上分组；`emit('toggle')` → 父组件 `addLog`/`deleteLog` 再刷新）、`ExpiringAlert`（只筛 `expiryStatus === 'expiring'`，按 `diffDaysFromToday(expiryDate)` 排序；`memberName || '家庭公用'`）；`QuickActions` / `AiBanner` 纯跳转。与打卡页同源云端。日期：`utils/date.js`（dayjs + `zh-cn`：`getTodayDateStr`、`getDateLine`、`getWeekdayLabel`、`diffDaysFromToday`）。已不用 `useMedicineCheckin` / `mocks/dashboard.js`（仓库里若还在可删）。
 - **设置（2026-09-13 已完成）**：`SettingsView` + 扩展 `/api/auth`。改用户名 `PATCH /profile`；通知偏好 `PATCH /settings`（`notificationEnabled` / `soundEnabled` / `reminderBeforeMinutes`∈`{0,5,10,15,30}`，存 `users` 表）；改密 `PATCH /password`；改邮 `POST /change-email`（发码 `purpose: change_email` + 图形码，验证码绑**新邮箱**，提交需当前密码；`checkCode` 成功后再 `consumeCode`）；头像 `POST /avatar`（`uploadSingle`，字段名 `file`，COS，写库成功删旧图）。登录与 `/me` 经 `formatUser` 返回 camelCase 含上述字段。Pinia `stores/user.js` 成功后写回 `user`。`UserAvatar`：有 `avatarUrl` 用图，否则用户名首字母；设置页与 `Sidebar` 共用。关通知时前端**只禁用**声音开关，**不**把 `soundEnabled` 改成 false。已去掉：震动、语言/时间格式/每周起始日、清除本地数据；用户协议/隐私政策 UI 保留但未实现。错误约定：表单校验 → 行内 `error`；接口失败 → `ElMessage`。验证码倒计时：`watch(countdown)` + `setTimeout` 链（AuthModal 与设置页统一此写法）。暂无浏览器推送 / `Notification` 权限（偏好先入库，到点提醒以后再接）。
-- **AI 助手（2026-09-22 · CRUD + 用药安全 + 医疗 RAG 已齐）**：`AiView` + `/api/ai`。模型 **DeepSeek**（`deepseek-flash`，axios 调官方 API，**不**换 Python）。**已完成**：流式 SSE + Markdown（`marked` + `dompurify`，`.ai-md`；链接 `target=_blank`）；Function calling **注册表模式**；确认卡通用 `fields`；取消仅前端改 `actionStatus`，**不**回传模型。前端流式用 **`fetch` 读 body**（勿走 axios）；历史只传 `role`+`content`（可去开场白、滤空）。**聊天记录不落库**：仅前端内存 + 请求短窗携带；刷新即失。旧 `POST /chat` **已删**，仅 `/chat-stream` + `/confirm`。
+- **AI 助手（2026-09-26 · 会话落库 + Pinia 流式状态已齐；CRUD/用药安全/RAG 此前已齐）**：`AiView` + `/api/ai`。模型 **DeepSeek**（`deepseek-flash`，axios 调官方 API，**不**换 Python）。**已完成**：流式 SSE + Markdown（`marked` + `dompurify`，`.ai-md`；链接 `target=_blank`）；Function calling **注册表模式**；确认卡通用 `fields`。前端流式用 **`fetch` 读 body**（勿走 axios）；历史只传 `role`+`content`（去开场白、滤空）；历史条数上限后端约 **40**（`parseMessages`）。旧 `POST /chat` **已删**。
+
+  **会话持久化（方案 2）**：
+  - 表：`ai_conversations`（`id` INT PK + **`public_id` CHAR(32) UNIQUE** 对外；`user_id`、`title` VARCHAR(50)、时间戳）；`ai_messages`（`conversation_id`→内部 INT FK CASCADE；`role`/`content`；`pending_action` JSON；`action_status`：`NULL`|`pending`|`done`|`cancelled`）。
+  - **`updated_at`**：仅新消息时 `touchUpdatedAt`；重命名 / 确认卡改状态 / 生成标题 **不要** 碰排序时间。表上勿留 `ON UPDATE CURRENT_TIMESTAMP`（否则改 title 会顶到侧栏最前）。
+  - 路由对外一律 **`publicId`**（32 hex）；内部 Model 用 INT `id`。
+  - API（均需登录）：`GET/POST /ai/conversations`；`GET/PATCH/DELETE /ai/conversations/:publicId`；`POST .../messages`（返回含 `id`、`createdAt`）；`PATCH .../messages/:messageId`（仅 `done`|`cancelled`）；`POST .../generate-title`（首轮 user+assistant → `deepseek.chat` 非流式 → 标题≤20）；另保留 `/chat-stream`、`/confirm`。
+  - 创建：首条用户消息才建行，初始 title **`新对话`**；第一轮 AI 落库后前端调 generate-title（失败静默）。标题 FE/BE 校验 **20** 字，库 **50**。
+  - 欢迎语仅前端，**不入库**。
+
+  **前端状态（Pinia `stores/ai.js`）**：正式状态在 store，**不要**再引入 `useAiConversations`。  
+  - `messagesById` / `draftMessages` / `typingById` / `activeId`；`currentMessages`、`isTyping` 为 computed。  
+  - **`sendMessage` 在 store**：流式回调写 `messagesById[publicId]`（`findInSession`，勿用 `currentMessages`，否则切页会丢）。`setTyping(false)` 须在 **append 助手消息之后**（finally 末尾），避免切回时用旧详情盖掉未入库内容。  
+  - `AiView`：薄壳——展示 `currentMessages`；发消息调 store；草稿首条后 `skipRouteReload` + `replace` 到 `ai/:conversationId`；路由 watch 若 `typingById[id]` 则 **不** `loadConversationDetail`。离开 AI 页流式不中断，回来仍可见。  
+  - 侧栏：`Sidebar` 用同一 store；无「设置」导航，用户信息进设置；重命名 `RenameConversationModal`（不改 `updatedAt`）。
+  - **入口跳转**：从其它页进 AI（侧栏「AI 助手」、首页 `AiBanner`）走 store **`resolveAiEntry`**：有会话 → `sortedConversations[0]`（最新）；无会话 → 草稿。侧栏/Banner 用 `button` + `cursor-pointer`，勿死链 `/dashboard/ai`。「新对话」仍 `enterDraft` + `/dashboard/ai`，不要走 `resolveAiEntry`。  
+  - 气泡时间：`formatMessageTime`（`utils/date.js`）；历史用库 `createdAt`；刚发送可先本地再回写。确认卡：落库前 `persisted===false` 禁用按钮；确认/取消后 PATCH `actionStatus`。
 
   **工具架构**：`backend/services/aiTools/`（`index.js` 注册表）。域文件：`family.js` / `health.js` / `medicines.js` / `reminders.js` / `checkin.js` / **`rag.js`**。每个工具：`name`、`kind`（`read`|`write`）、`definition`、读有 `run`、写有 `failHint` + `buildPending` + `execute`。`index` 对外：`TOOL_DEFINITIONS`、`isWriteTool`、`runReadTool`、`buildPending`、`executeConfirmedAction`、`getFailHint`。
 
@@ -86,19 +103,19 @@
   | 打卡 | `list_day_checkins` | `add_checkin`、`cancel_checkin`（须 `logId`+`logDate`；`logDate`≡list 的 `date`） |
   | RAG | `search_medical_knowledge` | （无写） |
 
-  **约定**：写操作不直接落库 → `pendingAction` → `POST /confirm`；一次 SSE 成功写工具只出**一张**确认卡；提醒不关联成员；可选字段清空用 `args.x === undefined`。`SYSTEM_PROMPT` 含工具、边界、用药安全、**RAG 引用/免责声明**。`MAX_TOOL_ROUNDS = 5`。读工具若伴随英文旁白：SSE 发 `content_reset`，前端清空该条助手气泡再继续 `delta`。
+  **约定**：写操作不直接落库 → `pendingAction` → `POST /confirm`；一次 SSE 成功写工具只出**一张**确认卡；提醒不关联成员；可选字段清空用 `args.x === undefined`。`SYSTEM_PROMPT` 含工具、边界、用药安全、**RAG 引用/免责声明**。`MAX_TOOL_ROUNDS = 5`。读工具若伴随英文旁白：SSE 发 `content_reset`，前端清空该条助手气泡再继续 `delta`。`deepseek.js`：`chatStream`（对话）+ `chat`（非流式短调用，如生成标题）。
 
   **用药安全（靠 prompt + `list_health_profiles`，未改库）**：能否服药 / 为成员加药 / 为某人相关药设提醒前须先查档案。过敏/禁忌 → 警告且暂不调写工具；慎用 → 说明后仍可出确认卡；无记录可写并声明「档案无记载≠安全」。
 
-  **医疗 RAG（2026-09-22）**：Agentic RAG——用药/病痛/护理等必调 `search_medical_knowledge`；CRUD 打卡等不必。向量库 **Chroma**（本机 Python `chroma run`，默认 `localhost:8000`，集合名 `CHROMA_COLLECTION` 默认 `carevial_medical`）。嵌入 **SiliconFlow 兼容** `EMBEDDING_*`（如 BAAI/bge-m3）。语料：① `backend/data/medical-kb/topics/*.json` 中文主题卡（整卡一块）；② openFDA `drug/label.json` 种子药（`ingestMedicalKb.js` 内 `OPENFDA_SEED_DRUGS`，按 section 切块，**按句装箱**约 700 字、重叠 1 句）。灌库：`node data/scripts/ingestMedicalKb.js`（会删旧集合全量重灌；药与药之间 sleep 防限流）。检索：`services/medicalRag.js`——向量 topN → `RAG_MAX_DISTANCE`（约 **0.82**）过滤；问句命中药名别名时对同药 `drugNames` 文档用 `RAG_DRUG_MAX_DISTANCE`（约 **1.0**）救援。返回 `hits` + `allowedCites` / `allowedSourceUrls` / `citeHint`；无 hits 走「未收录」hint。openFDA ≠ 中国说明书，prompt 要求注明。
+  **医疗 RAG（2026-09-22）**：Agentic RAG——用药/病痛/护理等必调 `search_medical_knowledge`；CRUD 打卡等不必。向量库 **Chroma**（本机 Python `chroma run`，默认 `localhost:8000`，集合名 `CHROMA_COLLECTION` 默认 `carevial_medical`）。嵌入 **SiliconFlow 兼容** `EMBEDDING_*`（如 BAAI/bge-m3）。语料：① `backend/data/medical-kb/topics/*.json` 中文主题卡（整卡一块）；② openFDA `drug/label.json` 种子药（`ingestMedicalKb.js` 内 `OPENFDA_SEED_DRUGS`，按 section 切块，**按句装箱**约 700 字、重叠 1 句）。灌库：`node scripts/ingestMedicalKb.js`（会删旧集合全量重灌；药与药之间 sleep 防限流）。检索：`services/medicalRag.js`——向量 topN → `RAG_MAX_DISTANCE`（约 **0.82**）过滤；问句命中药名别名时对同药 `drugNames` 文档用 `RAG_DRUG_MAX_DISTANCE`（约 **1.0**）救援。返回 `hits` + `allowedCites` / `allowedSourceUrls` / `citeHint`；无 hits 走「未收录」hint。openFDA ≠ 中国说明书，prompt 要求注明。
 
-  **RAG 评测**：`data/medical-kb/eval/golden.json`（正例带人工 `relevantIds`；负例 `expect: miss`）+ `node data/scripts/evalRaggolden.js` → 平均 **Recall@k** 与误召回率。探针距离：`node data/scripts/probeRagDistance.js`。小集上曾测得 Recall@5≈100%、误召回 0%（样本少，勿外推生产全量）。`relevantIds` = 人工「能直接支撑答题」的文档 id（中文卡用 JSON 的 `id`；openFDA 为 `openfda_{generic}_{section}_{idx}`），**不是**检索 top5 照抄。
+  **RAG 评测**：`data/medical-kb/eval/golden.json`（正例带人工 `relevantIds`；负例 `expect: miss`）+ `node scripts/evalRaggolden.js` → 平均 **Recall@k** 与误召回率。探针距离：`node scripts/probeRagDistance.js`。小集上曾测得 Recall@5≈100%、误召回 0%（样本少，勿外推生产全量）。`relevantIds` = 人工「能直接支撑答题」的文档 id（中文卡用 JSON 的 `id`；openFDA 为 `openfda_{generic}_{section}_{idx}`），**不是**检索 top5 照抄。
 
   **AI 页 UI**：`AppLayout` 在 `/dashboard/ai` 时 `main` 为 `overflow-hidden p-0`（避免双滚动条）；`AiView` 定高 flex：上消息 `overflow-y-auto`、下输入钉底。其它页 `main` 仍 `overflow-y-auto` + padding。
 
   **前端确认卡与正文**：`pending` 时**保留**已流式 `content`（`+= '\n\n' + reply`）；禁止 `content = reply` 覆盖。
 
-  **未做 / 下一会话**：AI 会话持久化（MySQL `ai_conversations` / `ai_messages`，非 Chroma）；可选 `list_expiring_medicines` / 今日摘要；浏览器推送；RAG 进阶（意图限 section、药表外置 JSON、按需拉 openFDA、引用服务端硬校验）。不做：AI 删药/删成员、改密换邮头像。知识库**不必**为 chunk 上 MySQL（向量继续 Chroma）。
+  **未做 / 可后做**：可选 `list_expiring_medicines` / 今日摘要；浏览器推送；RAG 进阶。历史条数超限（约 40）→ **硬拒并提示用户**（不截断、不静默丢历史）。不做：AI 删药/删成员、改密换邮头像。知识库**不必**为 chunk 上 MySQL。
 
 ### 仍用 mock / 未接
 
@@ -116,9 +133,9 @@
 
 ## 5. UI 预览
 
-当前对齐：**13522709**  
-https://readdy.cc/preview/d49be038-2eba-450c-bb6c-e42ec62a8b54/13522709/family  
-（其它页改路径末尾即可。）曾用 13428042；本地 `tmp-preview-src-*` 仅参考，已 gitignore。
+当前对齐：**14142728**（AI 侧栏：会话列表 + 重命名）  
+https://readdy.cc/preview/d49be038-2eba-450c-bb6c-e42ec62a8b54/14142728/ai  
+（其它页改路径末尾即可。）曾用 14073836 / 13522709；本地 `tmp-preview-src-*` 仅参考，已 gitignore。
 
 ---
 
@@ -211,8 +228,38 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 | `medicines` | **已用**（建表见 medicine-reminder README；`member_id` SET NULL） |
 | `reminders` | **已用**（一天一行；`days` TINYINT 0–6；`medicine_id` CASCADE） |
 | `medicine_logs` | **已用**（相对 README 增 **`log_date DATE NOT NULL`**；`reminder_id` 可空 + `ON DELETE SET NULL`；建议 `UNIQUE(reminder_id, log_date)`；保留 `scheduled_time` 作快照；`taken_at` 为点击时刻。打卡写 `taken`；未打卡 = 无行） |
+| `ai_conversations` | **已用（方案 2）**：`id` INT PK AI；**`public_id` CHAR(32) UNIQUE**（对外）；`user_id`、`title` VARCHAR(50) 默认「新对话」、`created_at`、`updated_at`（**不要** `ON UPDATE CURRENT_TIMESTAMP`，仅消息活动时应用层 `touchUpdatedAt`） |
+| `ai_messages` | **已用**：`id` INT PK；`conversation_id`→`ai_conversations.id` CASCADE；`role` ENUM；`content` TEXT；`pending_action` JSON NULL；`action_status` VARCHAR NULL；`created_at` |
 
-邮箱码/图形码只进 Redis。不要加回「库存」除非产品要求。参考 README 里 `days` 注释可能仍写逗号串/1–7，**本仓实现以一天一行 + 0–6 为准**。
+参考建表（已建过则勿盲目 DROP；以现网为准）：
+
+```sql
+CREATE TABLE ai_conversations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  public_id CHAR(32) NOT NULL,
+  user_id INT NOT NULL,
+  title VARCHAR(50) NOT NULL DEFAULT '新对话',
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_public_id (public_id),
+  INDEX idx_user_updated (user_id, updated_at),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE ai_messages (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  conversation_id INT NOT NULL,
+  role ENUM('user', 'assistant') NOT NULL,
+  content TEXT NOT NULL,
+  pending_action JSON NULL,
+  action_status VARCHAR(20) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_conv_created (conversation_id, created_at),
+  FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
+);
+```
+
+邮箱码/图形码只进 Redis。会话落库走 MySQL（**不是** Chroma）；Chroma 只服务医疗 RAG。不要加回「库存」除非产品要求。参考 README 里 `days` 注释可能仍写逗号串/1–7，**本仓实现以一天一行 + 0–6 为准**。
 
 ### 环境变量
 
@@ -222,10 +269,10 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 
 ## 8. 下一步
 
-1. **AI（CRUD + 用药安全 + RAG MVP 已齐）**：下一会话可选——**聊天记录 MySQL 持久化**；只读 `list_expiring_medicines` / 今日摘要；浏览器推送；RAG 增强（意图限 section、药表 JSON 外置、按需拉 openFDA）。不做：AI 删药/删成员、改密换邮头像；勿为 chunk 上 MySQL。
+1. （可选）AI：只读摘要工具；浏览器推送；RAG 增强。历史超限保持硬拒+提示，**不做**静默截断。不做：AI 删药/删成员、改密换邮头像；勿为 chunk 上 MySQL。
 2. 用户协议 / 隐私政策正文（设置页按钮暂空）。
 3. 上线：Cookie `secure: true`、配好 `FRONTEND_URL`。
-4. 可选：可删无用 `mocks/dashboard.js`、`useMedicineCheckin.js`；提醒重复校验；到点推送；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx；建表 SQL 收入本仓文档。
+4. 可选：可删无用 `mocks/dashboard.js`、`useMedicineCheckin.js`；提醒重复校验；到点推送；`expiry_status` 定时刷新或停写该列；打卡按日期范围一次拉取；创建接口统一 201 + 拦截器放行 2xx。
 
 ---
 
@@ -235,9 +282,9 @@ Redis：邮箱码、图形码。JWT Cookie 7 天；开发 `secure: false`。注�
 cd frontend; npm run dev    # build / lint / format
 cd backend;  npm run dev    # lint / format
 # RAG（Chroma 须已在 8000）
-cd backend; node data/scripts/ingestMedicalKb.js
-cd backend; node data/scripts/evalRaggolden.js
-cd backend; node data/scripts/probeRagDistance.js
+cd backend; node scripts/ingestMedicalKb.js
+cd backend; node scripts/evalRaggolden.js
+cd backend; node scripts/probeRagDistance.js
 ```
 
 ---
@@ -248,25 +295,26 @@ cd backend; node data/scripts/probeRagDistance.js
 AI_CONTEXT.md
 frontend/vite.config.js
 frontend/src/router/index.js          ← 勿改结构
-frontend/src/stores/user.js           ← 含 profile/settings/password/email/avatar
+frontend/src/stores/{user,ai}.js                ← ai：会话列表/messagesById/sendMessage/流式
 frontend/src/api/{request,auth,family,health,medicine,reminder,medicineLog,ai}.js
 frontend/src/utils/{validate,date,medicine,navigation,markdown}.js
 frontend/src/views/{Dashboard,Family,FamilyHealth,Medicines,MedicineAdd,MedicineDetail,Reminders,Checkin,Ai,Settings}View.vue
 frontend/src/components/home/{StatsCards,TodayMedicineTimeline,ExpiringAlert,QuickActions,AiBanner}.vue
 frontend/src/components/layout/{AppLayout,Sidebar}.vue
 frontend/src/composables/useInView.js            ← Landing / Feedback 入场；保留
+frontend/src/components/RenameConversationModal.vue
 frontend/src/composables/useMedicineCheckin.js   ← 已无引用，可删
 frontend/src/components/{AuthModal,CaptchaField,ConfirmModal,UserAvatar}.vue
 frontend/src/mocks/dashboard.js                 ← 已无引用，可删
 backend/routes/{index,auth,family,health,medicine,reminder,medicineLog,upload,ai}Routes.js
-backend/controllers/{auth,family,health,medicine,reminder,medicineLog,ai}Controller.js
-backend/services/deepseek.js                    ← SYSTEM_PROMPT + chatStream；勿提交真实 API Key
+backend/controllers/{auth,family,health,medicine,reminder,medicineLog,ai,aiConversation}Controller.js
+backend/services/deepseek.js                    ← SYSTEM_PROMPT + chatStream + chat；勿提交真实 API Key
 backend/services/{medicalRag,embeddings}.js     ← RAG 检索 / 嵌入
 backend/services/aiTools/{index,family,health,medicines,reminders,checkin,rag}.js
 backend/data/medical-kb/topics/*.json           ← 中文主题卡
 backend/data/medical-kb/eval/golden.json        ← RAG 黄金集（relevantIds）
-backend/data/scripts/{ingestMedicalKb,evalRaggolden,probeRagDistance}.js
-backend/models/{User,FamilyMember,HealthProfile,Medicine,Reminder,MedicineLog}.js
+backend/scripts/{ingestMedicalKb,evalRaggolden,probeRagDistance}.js
+backend/models/{User,FamilyMember,HealthProfile,Medicine,Reminder,MedicineLog,AIConversation,AIMessage}.js
 backend/middleware/auth.js
 backend/utils/{validate,date,upload,cosUpload,deleteCos,tencentCos,emailCode,mail,captcha}.js
 backend/config/{db,redis}.js

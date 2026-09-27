@@ -40,7 +40,7 @@ const createFamilyMember = {
       parameters: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: '姓名，不超过50字符' },
+          name: { type: 'string', description: '姓名，不超过20字符' },
           age: { type: 'integer', description: '年龄，0-120的整数，不传表示未填' },
           relationship: { type: 'string', description: '关系，如爸爸/妈妈，不超过50字符' }
         },
@@ -54,14 +54,14 @@ const createFamilyMember = {
     const age = args?.age;
     const relationship = String(args?.relationship || '').trim();
 
-    if (!validate.isNotEmpty(name) || name.length > 50) {
-      return { ok: false, message: '姓名不能为空且不超过50个字符' };
+    if (!validate.isNotEmpty(name) || name.length > 20) {
+      return { ok: false, message: '姓名不能为空且不超过20个字符' };
     }
     if (!validate.isAgeValidIfPresent(age)) {
       return { ok: false, message: '年龄需为0-120之间的整数' };
     }
-    if (!validate.isNotEmpty(relationship) || relationship.length > 50) {
-      return { ok: false, message: '关系不能为空且不超过50个字符' };
+    if (!validate.isNotEmpty(relationship) || relationship.length > 20) {
+      return { ok: false, message: '关系不能为空且不超过20个字符' };
     }
 
     return {
@@ -118,12 +118,12 @@ const updateFamilyMember = {
         type: 'object',
         properties: {
           memberId: { type: 'integer', description: '家庭成员ID（须为真实ID）' },
-          name: { type: 'string', description: '姓名，不超过50字符' },
+          name: { type: 'string', description: '姓名，不超过20字符' },
           age: {
             type: 'integer',
             description: '年龄，0-120的整数；不传保持原值；要清空请传空或 null'
           },
-          relationship: { type: 'string', description: '关系，如爸爸/妈妈，不超过50字符' }
+          relationship: { type: 'string', description: '关系，如爸爸/妈妈，不超过20字符' }
         },
         required: ['memberId']
       }
@@ -152,14 +152,14 @@ const updateFamilyMember = {
       ? String(args.relationship).trim()
       : member.relationship;
 
-    if (!validate.isNotEmpty(name) || name.length > 50) {
-      return { ok: false, message: '姓名不能为空且不超过50个字符' };
+    if (!validate.isNotEmpty(name) || name.length > 20) {
+      return { ok: false, message: '姓名不能为空且不超过20个字符' };
     }
     if (!validate.isAgeValidIfPresent(age)) {
       return { ok: false, message: '年龄需为0-120之间的整数' };
     }
-    if (!validate.isNotEmpty(relationship) || relationship.length > 50) {
-      return { ok: false, message: '关系不能为空且不超过50个字符' };
+    if (!validate.isNotEmpty(relationship) || relationship.length > 20) {
+      return { ok: false, message: '关系不能为空且不超过20个字符' };
     }
 
     return {

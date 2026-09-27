@@ -16,7 +16,7 @@ const editingProfile = ref(null)
 // 可修改的健康档案信息
 const editForm = ref(null)
 
-const NOTES_MAX = 1000
+const NOTES_MAX = 500
 const TAG_MAX_ITEMS = 20
 const TAG_MAX_LEN = 50
 
@@ -85,7 +85,7 @@ const handleSaveEdit = async () => {
 
   error.value = ''
   if (!isMedicalNotesValidIfPresent(editForm.value.medicalNotes)) {
-    error.value = '备注不能超过1000个字符'
+    error.value = '备注不能超过500个字符'
     return
   }
   if (!isStringArrayValid(editForm.value.allergies)) {
