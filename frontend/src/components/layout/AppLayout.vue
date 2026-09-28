@@ -3,6 +3,9 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
 import LogoMark from '../LogoMark.vue'
+import { useReminderNotify } from '../../composables/useReminderNotify'
+
+useReminderNotify()
 
 const route = useRoute()
 const mobileMenuOpen = ref(false)

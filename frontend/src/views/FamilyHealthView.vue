@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import { getHealthProfiles, updateHealthProfile } from '../api/health'
 import { isStringArrayValid, isMedicalNotesValidIfPresent } from '../utils/validate'
 
@@ -239,11 +240,7 @@ onMounted(() => {
           @click="toggleExpand(profile.memberId)"
           class="w-full px-5 py-4 md:px-6 md:py-5 flex items-center gap-4 text-left cursor-pointer hover:bg-background-50 transition-colors"
         >
-          <div
-            class="w-10 h-10 rounded-full bg-background-100 flex items-center justify-center flex-shrink-0"
-          >
-            <i class="ri-user-3-line text-foreground-400 text-[18px]"></i>
-          </div>
+          <user-avatar :username="profile.name" size-class="w-10 h-10" text-class="text-[14px]" />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2.5 flex-wrap">
               <p class="text-[15px] font-semibold text-foreground-900">{{ profile.name }}</p>

@@ -123,8 +123,8 @@ exports.createConversation = async (req, res) => {
       });
     }
 
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '创建对话成功',
       data: toPublicConversation(conv)
     });
@@ -282,8 +282,8 @@ exports.appendMessage = async (req, res) => {
       // 继续执行，不返回错误
     }
 
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '消息添加成功',
       data: {
         id: created.id,

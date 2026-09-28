@@ -125,8 +125,8 @@ exports.addLog = async (req, res) => {
       scheduled_time: reminder.time,
       log_date: logDate
     });
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '打卡成功',
       data: {
         id

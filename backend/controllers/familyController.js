@@ -62,8 +62,8 @@ exports.addMember = async (req, res) => {
       user_id: req.userId,
       ...parsed.data
     });
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '家庭成员添加成功',
       data: {
         id,

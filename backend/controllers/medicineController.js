@@ -149,8 +149,8 @@ exports.addMedicine = async (req, res) => {
 
     const id = await Medicine.create({ user_id: req.userId, ...parsed.data });
     const medicine = await Medicine.findById(id, req.userId);
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '药品添加成功',
       data: medicine
     });

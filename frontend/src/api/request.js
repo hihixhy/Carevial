@@ -18,7 +18,8 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (res) => {
     const body = res.data
-    if (body && body.code === 200) {
+    const code = body?.code
+    if (typeof code === 'number' && code >= 200 && code < 300) {
       return body
     }
     return Promise.reject(new Error(body?.message || '请求失败'))

@@ -58,13 +58,6 @@ function badgeIcon(status) {
           自定义提醒时间、频率与方式。餐前、餐后、睡前 —— Carevial
           会在正确的时间，以温柔的方式提醒你。
         </p>
-        <a
-          href="#"
-          class="text-[13px] font-medium text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 transition-colors cursor-pointer"
-        >
-          了解提醒功能
-          <i class="ri-arrow-right-line text-[12px]" />
-        </a>
       </div>
 
       <div class="order-1 md:order-2 relative">

@@ -66,13 +66,6 @@ const members = [
         <p class="text-[15px] text-foreground-500 leading-relaxed max-w-[420px] mb-6">
           为每位家庭成员独立建立用药档案。老人的降压药、孩子的维生素、全家的常备药，全部井井有条。
         </p>
-        <a
-          href="#"
-          class="text-[13px] font-medium text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 transition-colors cursor-pointer"
-        >
-          了解家庭档案
-          <i class="ri-arrow-right-line text-[12px]" />
-        </a>
       </div>
     </div>
   </section>

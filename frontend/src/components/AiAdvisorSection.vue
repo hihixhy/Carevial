@@ -26,13 +26,6 @@ const { target, inView } = useInView()
         <p class="text-[15px] text-foreground-500 leading-relaxed max-w-[420px] mb-6">
           药品怎么吃、能不能一起吃、有什么副作用 —— AI 顾问基于你的用药记录，给出个性化的专业建议。
         </p>
-        <a
-          href="#"
-          class="text-[13px] font-medium text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 transition-colors cursor-pointer"
-        >
-          了解 AI 顾问
-          <i class="ri-arrow-right-line text-[12px]" />
-        </a>
       </div>
 
       <div class="order-1 md:order-2 relative">

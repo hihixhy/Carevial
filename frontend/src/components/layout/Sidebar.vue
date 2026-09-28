@@ -114,6 +114,18 @@ const confirmDeleteConversation = async () => {
   }
 }
 
+// 移动端点击重命名时关闭侧边栏
+const onMobileRename = (id) => {
+  renameId.value = id
+  emit('close-mobile')
+}
+
+// 移动端点击删除时关闭侧边栏
+const onMobileDelete = (id) => {
+  deleteId.value = id
+  emit('close-mobile')
+}
+
 // 编辑对话名称
 const onRenameConfirm = async (title) => {
   if (!renameId.value) return
@@ -153,7 +165,7 @@ const handleLogout = async () => {
         <button
           v-if="item.path === '/dashboard/ai'"
           type="button"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 whitespace-nowrap relative cursor-pointer"
+          class="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-left text-[13px] font-medium transition-all duration-200 whitespace-nowrap relative cursor-pointer"
           :class="
             isActive(item)
               ? 'text-primary-700 bg-primary-50/60'
@@ -367,7 +379,7 @@ const handleLogout = async () => {
         <button
           v-if="item.path === '/dashboard/ai'"
           type="button"
-          class="flex items-center gap-3 px-3 py-3 rounded-xl text-[14px] font-medium transition-all duration-200 whitespace-nowrap relative cursor-pointer"
+          class="flex w-full items-center gap-3 px-3 py-3 rounded-xl text-left text-[14px] font-medium transition-all duration-200 whitespace-nowrap relative cursor-pointer"
           :class="
             isActive(item)
               ? 'text-primary-700 bg-primary-50/60'
@@ -453,16 +465,16 @@ const handleLogout = async () => {
             <button
               type="button"
               title="重命名对话"
-              class="w-6 h-6 flex items-center justify-center rounded-md text-foreground-300 hover:text-primary-600 hover:bg-primary-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer flex-shrink-0"
-              @click="renameId = conv.id"
+              class="w-6 h-6 flex items-center justify-center rounded-md text-foreground-300 hover:text-primary-600 hover:bg-primary-50 opacity-100 transition-all cursor-pointer flex-shrink-0"
+              @click="onMobileRename(conv.id)"
             >
               <i class="ri-edit-line text-[13px]" />
             </button>
             <button
               type="button"
               title="删除对话"
-              class="w-6 h-6 mr-1 flex items-center justify-center rounded-md text-foreground-300 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer flex-shrink-0"
-              @click="deleteId = conv.id"
+              class="w-6 h-6 mr-1 flex items-center justify-center rounded-md text-foreground-300 hover:text-rose-500 hover:bg-rose-50 opacity-100 transition-all cursor-pointer flex-shrink-0"
+              @click="onMobileDelete(conv.id)"
             >
               <i class="ri-delete-bin-line text-[13px]" />
             </button>
