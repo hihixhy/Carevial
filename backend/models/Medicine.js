@@ -74,20 +74,17 @@ class Medicine {
         photo_url
       } = data;
 
-      const expiry_status = calcExpiryStatus(expiry_date);
-
       const [result] = await pool.execute(
         `INSERT INTO medicines
-          (user_id, member_id, name, specification, expiry_date, expiry_status,
+          (user_id, member_id, name, specification, expiry_date,
           dosage, indications, medicine_type, remark, photo_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           user_id,
           member_id == null ? null : member_id,
           name,
           specification == null || specification === '' ? null : specification,
           expiry_date,
-          expiry_status,
           dosage == null || dosage === '' ? null : dosage,
           indications == null || indications === '' ? null : indications,
           medicine_type,
@@ -118,15 +115,12 @@ class Medicine {
         touchPhoto
       } = data;
 
-      const expiry_status = calcExpiryStatus(expiry_date);
-
       // 公共字段
       const baseParams = [
         member_id == null ? null : member_id,
         name,
         specification == null || specification === '' ? null : specification,
         expiry_date,
-        expiry_status,
         dosage == null || dosage === '' ? null : dosage,
         indications == null || indications === '' ? null : indications,
         medicine_type,
@@ -139,7 +133,7 @@ class Medicine {
       // 判断要不要改photo_url
       if (touchPhoto) {
         sql = `UPDATE medicines SET
-          member_id = ?, name = ?, specification = ?, expiry_date = ?, expiry_status = ?,
+          member_id = ?, name = ?, specification = ?, expiry_date = ?,
           dosage = ?, indications = ?, medicine_type = ?, remark = ?, photo_url = ?
           WHERE id = ? AND user_id = ?`;
         params = [
@@ -150,7 +144,7 @@ class Medicine {
         ];
       } else {
         sql = `UPDATE medicines SET
-          member_id = ?, name = ?, specification = ?, expiry_date = ?, expiry_status = ?,
+          member_id = ?, name = ?, specification = ?, expiry_date = ?,
           dosage = ?, indications = ?, medicine_type = ?, remark = ?
           WHERE id = ? AND user_id = ?`;
         params = [...baseParams, id, userId];

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 import {
   getFamilyMembers,
   addFamilyMember,
@@ -88,16 +89,16 @@ const validateForm = () => {
     error.value = '请输入姓名'
     return false
   }
-  if (name.length > 50) {
-    error.value = '姓名不能超过50个字符'
+  if (name.length > 20) {
+    error.value = '姓名不能超过20个字符'
     return false
   }
   if (!relationship) {
     error.value = '请输入关系'
     return false
   }
-  if (relationship.length > 50) {
-    error.value = '关系不能超过50个字符'
+  if (relationship.length > 20) {
+    error.value = '关系不能超过20个字符'
     return false
   }
   if (!isAgeValidIfPresent(age)) {
@@ -231,11 +232,7 @@ onMounted(() => {
         class="bg-white border border-background-200 rounded-2xl p-5 hover:border-background-300 transition-colors duration-200 group"
       >
         <div class="flex items-start gap-4">
-          <div
-            class="w-12 h-12 rounded-2xl bg-background-100 flex items-center justify-center flex-shrink-0"
-          >
-            <i class="ri-user-line text-foreground-400 text-[20px]"></i>
-          </div>
+          <user-avatar :username="member.name" size-class="w-12 h-12" text-class="text-[18px]" />
 
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline gap-1.5 flex-wrap">

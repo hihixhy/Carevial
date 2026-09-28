@@ -14,12 +14,12 @@ exports.getDayLogs = async (req, res) => {
 
   try {
     // 获取日期所属的星期几
-    const days = new Date(`${date}T12:00:00`).getDay();
+    const weekday = new Date(`${date}T12:00:00`).getDay();
 
     const allReminders = await Reminder.findByUser(req.userId);
     // 获取当天提醒
     const schedule = allReminders
-      .filter((r) => r.days === days)
+      .filter((r) => r.days === weekday)
       .sort((a, b) => a.time.localeCompare(b.time));
 
     // 获取当天打卡记录
@@ -95,8 +95,8 @@ exports.addLog = async (req, res) => {
     }
 
     // logDate的周几必须等于提醒的days
-    const days = new Date(`${logDate}T12:00:00`).getDay();
-    if (reminder.days !== days) {
+    const weekday = new Date(`${logDate}T12:00:00`).getDay();
+    if (reminder.days !== weekday) {
       return res.status(400).json({
         code: 400,
         message: '该提醒不适用于所选日期',
@@ -125,8 +125,8 @@ exports.addLog = async (req, res) => {
       scheduled_time: reminder.time,
       log_date: logDate
     });
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '打卡成功',
       data: {
         id

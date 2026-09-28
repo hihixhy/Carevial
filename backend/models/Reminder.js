@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { dayjs } = require('../utils/date');
 
 const formatTime = (value) => {
   if (value == null || value === '') return '';
@@ -163,6 +164,85 @@ class Reminder {
       return result.affectedRows > 0;
     } catch (err) {
       console.error('Reminder.delete 数据库错误:', err);
+      throw err;
+    }
+  }
+
+  // 查找需要通知的提醒
+  static async findDueCandidates(weekday, userIds) {
+    try {
+      // 无人在线就不查
+      if (Array.isArray(userIds) && userIds.length === 0) {
+        return [];
+      }
+
+      let sql = `
+        SELECT
+          r.id,
+          r.user_id,
+          r.medicine_id,
+          r.time,
+          r.days,
+          m.name AS medicine_name,
+          u.sound_enabled,
+          u.reminder_before_minutes
+        FROM reminders r
+        JOIN medicines m
+          ON m.id = r.medicine_id AND m.user_id = r.user_id
+        JOIN users u
+          ON u.id = r.user_id
+        WHERE r.enabled = 1
+          AND u.notification_enabled = 1
+          AND r.days = ?
+      `;
+      const params = [weekday];
+
+      if (Array.isArray(userIds) && userIds.length > 0) {
+        const placeholders = userIds.map(() => '?').join(', ');
+        sql += ` AND r.user_id IN (${placeholders})`;
+        params.push(...userIds);
+      }
+
+      const [rows] = await pool.execute(sql, params);
+      return rows;
+    } catch (err) {
+      console.error('Reminder.findDueCandidates 数据库错误:', err);
+      throw err;
+    }
+  }
+
+  static async findDueNow(userIds) {
+    try {
+      const weekday = dayjs().day(); // 今天星期0-6
+      const nowHm = dayjs().format('HH:mm'); // 当前时间HH:mm
+
+      const rows = await Reminder.findDueCandidates(weekday, userIds);
+      const due = [];
+
+      for (const row of rows) {
+        const timeStr = formatTime(row.time);
+        if (!timeStr) continue;
+
+        const before = Number(row.reminder_before_minutes) || 0;
+
+        // 通知时刻 = 服药时间 - 提前分钟
+        const notifyHm = dayjs(`2000-01-01 ${timeStr}`).subtract(before, 'minute').format('HH:mm');
+
+        if (notifyHm !== nowHm) continue;
+
+        due.push({
+          reminderId: row.id,
+          userId: row.user_id,
+          medicineName: row.medicine_name || '',
+          time: timeStr,
+          notifyHm,
+          soundEnabled: Boolean(row.sound_enabled)
+        });
+      }
+
+      return due;
+    } catch (err) {
+      console.error('Reminder.findDueNow 数据库错误:', err);
       throw err;
     }
   }

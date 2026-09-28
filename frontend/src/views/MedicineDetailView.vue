@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { getMedicine, deleteMedicine } from '../api/medicine.js'
@@ -218,7 +218,9 @@ onMounted(() => {
               {{
                 medicine.expiryStatus === 'expired'
                   ? '已过期'
-                  : `${diffDaysFromToday(medicine.expiryDate)}天后过期`
+                  : diffDaysFromToday(medicine.expiryDate) === 0
+                    ? '今天过期'
+                    : `${diffDaysFromToday(medicine.expiryDate)}天后过期`
               }}
             </span>
           </div>

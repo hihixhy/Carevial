@@ -10,7 +10,7 @@ const toDateString = (value) => {
 // 获取今天零点时间
 const today = () => dayjs().startOf('day');
 
-// 计算距离今天的天数差 正数=没过期 负数=已过期
+// 计算距离今天的天数差 0和正数=没过期 负数=已过期
 const diffDaysFromToday = (expiryDate) => {
   return dayjs(expiryDate).startOf('day').diff(today(), 'day');
 };

@@ -240,8 +240,8 @@ exports.register = async (req, res) => {
     // 核销验证码（注册成功才删除）
     await consumeCode('register', email);
 
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '注册成功',
       data: { userId }
     });
@@ -746,8 +746,8 @@ exports.uploadAvatar = async (req, res) => {
     }
 
     const user = await User.findById(req.userId);
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '头像上传成功',
       data: formatUser(user)
     });

@@ -22,7 +22,7 @@ const parseProfileBody = (body) => {
     return { ok: false, message: '用药禁忌格式无效' };
   }
   if (!validate.isMedicalNotesValidIfPresent(medicalNotes)) {
-    return { ok: false, message: '备注不能超过1000个字符' };
+    return { ok: false, message: '备注不能超过500个字符' };
   }
 
   // 将非数组转换为数组，将每一项转换为字符串并去除空格，过滤掉空字符串

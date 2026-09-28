@@ -66,7 +66,7 @@ const isStringArrayValid = (arr, { maxItems = 20, maxLen = 50 } = {}) => {
 // 健康档案备注校验（有值时校验）
 const isMedicalNotesValidIfPresent = (notes) => {
   if (!isNotEmpty(notes)) return true
-  return String(notes).trim().length <= 1000
+  return String(notes).trim().length <= 500
 }
 
 // 药品类型校验

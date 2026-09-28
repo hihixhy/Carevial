@@ -3,6 +3,7 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CaptchaField from '../components/CaptchaField.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import LegalDocModal from '../components/LegalDocModal.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import { useUserStore } from '../stores/user'
 import { isEmail, isUsernameValid, isPasswordValid, isCodeValid } from '../utils/validate'
@@ -20,6 +21,9 @@ const nameSaving = ref(false)
 const settingsSaving = ref(false)
 
 const showLogoutConfirm = ref(false)
+
+/** null | 'agreement' | 'privacy' */
+const legalDocType = ref(null)
 
 // 修改密码
 const showPasswordModal = ref(false)
@@ -133,10 +137,22 @@ const saveSettings = async (patch) => {
   }
 }
 
-const toggle = (key) => {
+const toggle = async (key) => {
   const u = userStore.user
   if (!u) return
   if (key === 'soundEnabled' && !u.notificationEnabled) return
+
+  // 正在打开总通知，申请浏览器权限
+  if (key === 'notificationEnabled' && !u.notificationEnabled) {
+    if (typeof Notification !== 'undefined') {
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission()
+      } else if (Notification.permission === 'denied') {
+        ElMessage.warning('请在浏览器设置中开启通知权限')
+      }
+    }
+  }
+
   saveSettings({ [key]: !u[key] })
 }
 
@@ -457,7 +473,9 @@ const handleLogout = async () => {
     <section class="bg-white border border-background-200 rounded-2xl overflow-hidden">
       <div class="px-4 md:px-6 py-5">
         <h2 class="text-[15px] md:text-[16px] font-semibold text-foreground-900">通知设置</h2>
-        <p class="text-[12px] text-foreground-400 mt-0.5">管理用药提醒的通知方式</p>
+        <p class="text-[12px] text-foreground-400 mt-0.5">
+          管理用药提醒的通知方式（需保持网页打开才能收到通知）
+        </p>
       </div>
       <div class="px-4 md:px-6 pb-5 space-y-0.5">
         <div
@@ -650,7 +668,9 @@ const handleLogout = async () => {
           </div>
           <div class="flex-shrink-0 ml-4">
             <button
+              type="button"
               class="px-4 py-2 text-[12px] font-medium text-foreground-600 bg-background-100 hover:bg-background-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+              @click="legalDocType = 'agreement'"
             >
               查看
             </button>
@@ -672,7 +692,9 @@ const handleLogout = async () => {
           </div>
           <div class="flex-shrink-0 ml-4">
             <button
+              type="button"
               class="px-4 py-2 text-[12px] font-medium text-foreground-600 bg-background-100 hover:bg-background-200 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+              @click="legalDocType = 'privacy'"
             >
               查看
             </button>
@@ -892,6 +914,12 @@ const handleLogout = async () => {
       icon="ri-logout-box-line"
       @close="showLogoutConfirm = false"
       @confirm="handleLogout"
+    />
+
+    <LegalDocModal
+      :open="!!legalDocType"
+      :type="legalDocType || 'agreement'"
+      @close="legalDocType = null"
     />
   </div>
 </template>

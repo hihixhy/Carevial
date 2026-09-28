@@ -1,6 +1,25 @@
+<script setup>
+import { useRouter } from 'vue-router'
+import { useAiStore } from '../../stores/ai'
+
+const router = useRouter()
+const aiStore = useAiStore()
+
+const goAi = async () => {
+  try {
+    const loc = await aiStore.resolveAiEntry()
+    await router.push(loc)
+  } catch (err) {
+    ElMessage.error(err.message || '加载对话列表失败')
+    router.push({ name: 'ai' })
+  }
+}
+</script>
+
 <template>
-  <RouterLink
-    to="/dashboard/ai"
+  <button
+    type="button"
+    @click="goAi"
     class="fixed bottom-6 right-6 z-40 group flex items-center gap-2 bg-primary-500 hover:bg-primary-600 text-white pl-3 pr-4 py-2.5 rounded-full transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
   >
     <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -12,5 +31,5 @@
       class="absolute inset-0 rounded-full border border-white/40 animate-ping opacity-30 pointer-events-none"
       style="animation-duration: 2s"
     />
-  </RouterLink>
+  </button>
 </template>

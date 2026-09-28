@@ -16,8 +16,8 @@ router.post('/image', authMiddleware, uploadSingle, async (req, res) => {
 
     const fileUrl = await uploadImageBuffer(req.file.buffer);
 
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '图片上传成功',
       data: {
         url: fileUrl

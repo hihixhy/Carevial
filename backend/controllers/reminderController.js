@@ -1,6 +1,7 @@
 const Reminder = require('../models/Reminder');
 const Medicine = require('../models/Medicine');
 const validate = require('../utils/validate');
+const reminderNotifyHub = require('../services/reminderNotifyHub');
 
 const parseEnabled = (enabled) => {
   if (enabled === undefined) return { ok: true, value: true };
@@ -145,8 +146,8 @@ exports.addReminder = async (req, res) => {
       if (row) created.push(row);
     }
 
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '提醒添加成功',
       data: created
     });
@@ -244,4 +245,35 @@ exports.deleteReminder = async (req, res) => {
       data: null
     });
   }
+};
+
+exports.notifyStream = (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  // 登记连接
+  reminderNotifyHub.add(req.userId, res);
+
+  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
+
+  // 心跳检测
+  const heartbeat = setInterval(() => {
+    if (res.writableEnded) {
+      clearInterval(heartbeat);
+      return;
+    }
+    try {
+      res.write(': ping\n\n');
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 25000);
+
+  // 客户端断开时清理
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    reminderNotifyHub.remove(req.userId, res);
+  });
 };

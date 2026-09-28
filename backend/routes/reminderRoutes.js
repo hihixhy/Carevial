@@ -5,6 +5,8 @@ const authMiddleware = require('../middleware/auth');
 
 router.use(authMiddleware);
 
+router.get('/notify-stream', reminderController.notifyStream);
+
 router.get('/', reminderController.getReminders);
 router.get('/medicine/:medicineId', reminderController.getRemindersByMedicine);
 router.post('/', reminderController.addReminder);

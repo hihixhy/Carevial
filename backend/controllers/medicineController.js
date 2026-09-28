@@ -35,8 +35,8 @@ const parseMedicineBody = (body) => {
   if (!validate.isOptionalStringMax(dosage, 200)) {
     return { ok: false, message: '用法用量不能超过200个字符' };
   }
-  if (!validate.isOptionalStringMax(indications, 255)) {
-    return { ok: false, message: '适应症不能超过255个字符' };
+  if (!validate.isOptionalStringMax(indications, 300)) {
+    return { ok: false, message: '适应症不能超过300个字符' };
   }
   if (!validate.isMedicineTypeValid(medicineType)) {
     return { ok: false, message: '药品类型无效' };
@@ -149,8 +149,8 @@ exports.addMedicine = async (req, res) => {
 
     const id = await Medicine.create({ user_id: req.userId, ...parsed.data });
     const medicine = await Medicine.findById(id, req.userId);
-    return res.status(200).json({
-      code: 200,
+    return res.status(201).json({
+      code: 201,
       message: '药品添加成功',
       data: medicine
     });

@@ -1,0 +1,9 @@
+{
+  "id": "elder-medication",
+  "title": "老年人用药注意事项（通则）",
+  "category": "special_population",
+  "tags": ["老人", "老年人", "多种药"],
+  "sourceName": "internal_curated",
+  "sourceNote": "依据公开药品说明书中老年用药提示整理",
+  "content": "老年人肝肾功能可能下降，同一种药往往更需要遵医嘱，不要自行加量或停药。同时吃多种药时，先核对是否重复（例如两种药都含同一种退热成分）。头晕、跌倒、食欲明显变差、排尿异常时及时问医生，不要自己用新药对症。"
+}
