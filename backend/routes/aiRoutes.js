@@ -3,6 +3,7 @@ const router = express.Router();
 const aiController = require('../controllers/aiController');
 const aiConversationController = require('../controllers/aiConversationController');
 const authMiddleware = require('../middleware/auth');
+const { aiLimiter } = require('../middleware/rateLimit');
 
 router.use(authMiddleware);
 
@@ -19,7 +20,7 @@ router.patch(
 // 生成标题
 router.patch('/conversations/:publicId/generate-title', aiConversationController.generateTitle);
 
-router.post('/chat-stream', aiController.chatStream);
-router.post('/confirm', aiController.confirm);
+router.post('/chat-stream', aiLimiter, aiController.chatStream);
+router.post('/confirm', aiLimiter, aiController.confirm);
 
 module.exports = router;

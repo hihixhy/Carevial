@@ -17,11 +17,13 @@ const { deleteCosByUrl } = require('../utils/deleteCos');
 
 // Cookie过期时间 7天
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const isCookieSecure =
+  process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production';
 
 const setAuthCookie = (res, token) => {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: false,
+    secure: isCookieSecure, // 生产环境必须打开
     sameSite: 'lax',
     path: '/',
     maxAge: COOKIE_MAX_AGE
@@ -766,7 +768,7 @@ exports.uploadAvatar = async (req, res) => {
 exports.logout = (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: false,
+    secure: isCookieSecure,
     sameSite: 'lax',
     path: '/'
   });

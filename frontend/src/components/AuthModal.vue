@@ -344,7 +344,7 @@ const submitClass =
             </div>
             <button
               type="button"
-              :disabled="countdown > 0 || !captchaReady"
+              :disabled="countdown > 0"
               class="px-4 py-2.5 text-[12px] font-medium rounded-lg transition-all whitespace-nowrap cursor-pointer bg-foreground-900 hover:bg-foreground-800 text-background-50 disabled:bg-background-200 disabled:text-foreground-400 disabled:cursor-not-allowed"
               @click="requestCode"
             >
@@ -461,7 +461,7 @@ const submitClass =
             </div>
             <button
               type="button"
-              :disabled="countdown > 0 || !captchaReady"
+              :disabled="countdown > 0"
               class="px-4 py-2.5 text-[12px] font-medium rounded-lg transition-all whitespace-nowrap cursor-pointer bg-foreground-900 hover:bg-foreground-800 text-background-50 disabled:bg-background-200 disabled:text-foreground-400 disabled:cursor-not-allowed"
               @click="requestCode"
             >

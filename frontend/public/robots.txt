@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /feedback
+Disallow: /dashboard
+
+Sitemap: https://carevial.com/sitemap.xml
