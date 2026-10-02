@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, onBeforeUnmount } from 'vue'
 import { getDayLogs, addLog, deleteLog } from '../api/medicineLog'
 
 // 获取指定偏移量的日期对象
@@ -22,6 +22,12 @@ const todayDateStr = daysInWeek.find((d) => d.isToday)?.dateStr || daysInWeek[3]
 // 默认选中今天
 const selectedDate = ref(todayDateStr)
 
+// 请求中断控制器
+let weekAbort = null
+let dayAbort = null
+// 存活标记，用于在组件卸载时中断请求
+let alive = true
+
 const loading = ref(true)
 const togglingId = ref(null) // 防止连点
 
@@ -36,8 +42,12 @@ const isToday = computed(() => selectedDate.value === todayDateStr)
 const loadDay = async (dateStr, opts = {}) => {
   const showLoading = opts.showLoading !== false
   if (showLoading) loading.value = true
+  dayAbort?.abort()
+  dayAbort = new AbortController()
+  const { signal } = dayAbort
   try {
-    const res = await getDayLogs(dateStr)
+    const res = await getDayLogs(dateStr, { signal })
+    if (!alive) return
     const data = res.data || {}
     dayItems.value = data.items || []
     checkedCount.value = data.checkedCount || 0
@@ -50,6 +60,7 @@ const loadDay = async (dateStr, opts = {}) => {
       }
     }
   } catch (err) {
+    if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return
     ElMessage.error(err.message || '加载打卡记录失败')
   } finally {
     if (showLoading) loading.value = false
@@ -58,9 +69,16 @@ const loadDay = async (dateStr, opts = {}) => {
 
 // 获取周进度
 const loadWeekMap = async () => {
+  weekAbort?.abort()
+  weekAbort = new AbortController()
+  const { signal } = weekAbort
+
   try {
     // 并发获取7天打卡记录
-    const results = await Promise.all(daysInWeek.map(({ dateStr }) => getDayLogs(dateStr)))
+    const results = await Promise.all(
+      daysInWeek.map(({ dateStr }) => getDayLogs(dateStr, { signal }))
+    )
+    if (!alive) return
     const map = {}
     daysInWeek.forEach(({ dateStr }, i) => {
       const data = results[i].data || {}
@@ -68,10 +86,19 @@ const loadWeekMap = async () => {
         checkedCount: data.checkedCount || 0,
         total: data.total || 0
       }
+      // 如果是当前选中日期，则更新当天数据
+      if (dateStr === selectedDate.value) {
+        dayItems.value = data.items || []
+        checkedCount.value = data.checkedCount || 0
+        total.value = data.total || 0
+      }
     })
     weekCheckinMap.value = map
   } catch (err) {
+    if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return
     ElMessage.error(err.message || '加载周进度失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -103,8 +130,13 @@ const handleToggleCheckin = async (item) => {
 }
 
 onMounted(async () => {
-  await loadDay(selectedDate.value)
-  loadWeekMap()
+  loading.value = true
+  await loadWeekMap()
+})
+onBeforeUnmount(() => {
+  alive = false
+  dayAbort?.abort()
+  weekAbort?.abort()
 })
 </script>
 
