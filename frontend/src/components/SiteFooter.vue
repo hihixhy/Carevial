@@ -23,5 +23,17 @@ import LogoMark from './LogoMark.vue'
       </div>
       <p class="text-[11px] text-foreground-300">© 2026 Carevial</p>
     </div>
+
+    <!-- 备案号 -->
+    <div class="max-w-6xl mx-auto mt-2 pt-2 text-left">
+      <a
+        href="https://beian.miit.gov.cn/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-[12px] text-foreground-400 hover:text-foreground-600 transition-colors cursor-pointer"
+      >
+        ICP备案/许可证号：赣ICP备2026025836号-1
+      </a>
+    </div>
   </footer>
 </template>
