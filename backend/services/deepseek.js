@@ -129,6 +129,7 @@ const chatStream = async (messages, { tools, onDelta, onClearContent } = {}) => 
   try {
     const payload = {
       model,
+      temperature: 0.2,
       messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
       stream: true,
       thinking: { type: 'disabled' }
