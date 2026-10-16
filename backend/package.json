@@ -26,7 +26,7 @@
     "multer": "^2.4.0",
     "mysql2": "^3.18.2",
     "resend": "^6.20.0",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "svg-captcha": "^1.4.0"
   },
   "devDependencies": {
