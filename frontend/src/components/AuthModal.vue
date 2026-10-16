@@ -40,8 +40,8 @@ watch([email, password, username, confirmPassword, code], () => {
 
 const goAfterAuth = () => {
   const redirect = route.query.redirect
-  if (isSafeInternalPath(redirect)) router.replace(redirect)
-  else router.replace({ name: 'dashboard' })
+  const target = isSafeInternalPath(redirect) ? redirect : '/dashboard'
+  window.location.assign(target)
 }
 
 watch(countdown, (value) => {
