@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import LogoMark from './LogoMark.vue'
 import CaptchaField from './CaptchaField.vue'
 import { isSafeInternalPath } from '../utils/navigation'
@@ -13,7 +13,6 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const route = useRoute()
-const router = useRouter()
 const userStore = useUserStore()
 
 const mode = ref('login')
