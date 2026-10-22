@@ -1,8 +1,8 @@
-import { defineConfig, globalIgnores } from 'eslint/config'
-import globals from 'globals'
-import js from '@eslint/js'
-import skipFormatting from 'eslint-config-prettier/flat'
-import pluginPrettier from 'eslint-plugin-prettier'
+import { defineConfig, globalIgnores } from 'eslint/config';
+import globals from 'globals';
+import js from '@eslint/js';
+import skipFormatting from 'eslint-config-prettier/flat';
+import pluginPrettier from 'eslint-plugin-prettier';
 
 export default defineConfig([
   {
@@ -45,4 +45,4 @@ export default defineConfig([
   },
 
   skipFormatting
-])
+]);
