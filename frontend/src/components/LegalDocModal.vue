@@ -44,7 +44,9 @@ const doc = computed(() => LEGAL_DOCS[props.type] || LEGAL_DOCS.agreement)
 
         <div class="px-6 py-5 overflow-y-auto space-y-5 min-h-0">
           <section v-for="(section, idx) in doc.sections" :key="idx">
-            <h4 class="text-[14px] font-semibold text-foreground-900 mb-2">{{ section.heading }}</h4>
+            <h4 class="text-[14px] font-semibold text-foreground-900 mb-2">
+              {{ section.heading }}
+            </h4>
             <div class="space-y-2">
               <p
                 v-for="(p, pIdx) in section.paragraphs"
