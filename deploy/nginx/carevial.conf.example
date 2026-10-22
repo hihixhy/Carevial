@@ -1,0 +1,51 @@
+# Carevial Nginx 示例配置（脱敏模板）
+# 用法：复制到服务器 Nginx 站点配置，改证书路径后：nginx -t && systemctl reload nginx
+# 注意：不要把真实私钥、密码写进仓库
+
+server {
+    listen 80;
+    server_name carevial.com www.carevial.com;
+    return 301 https://carevial.com$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name www.carevial.com;
+    # 证书路径按你服务器实际填写
+    # ssl_certificate     /path/to/fullchain.pem;
+    # ssl_certificate_key /path/to/privkey.pem;
+    return 301 https://carevial.com$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name carevial.com;
+
+    # 证书路径按你服务器实际填写
+    # ssl_certificate     /path/to/fullchain.pem;
+    # ssl_certificate_key /path/to/privkey.pem;
+
+    # 前端打包产物
+    root /var/www/Carevial/frontend/dist;
+    index index.html;
+
+    # Vue History 路由
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API + SSE（AI 流式、到点通知）
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE 关键：不要缓冲，超时要长
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
