@@ -13,6 +13,7 @@ import {
   uploadAvatar,
   logoutUser
 } from '../api/auth'
+import { broadcastAuthLogout } from '../utils/authSync'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(null)
@@ -21,6 +22,10 @@ export const useUserStore = defineStore('user', () => {
 
   // 是否已登录
   const isAuthenticated = computed(() => !!user.value)
+
+  const clearSession = () => {
+    user.value = null
+  }
 
   const sendCode = (payload) => sendEmailCode(payload)
 
@@ -79,7 +84,8 @@ export const useUserStore = defineStore('user', () => {
     try {
       await logoutUser()
     } finally {
-      user.value = null
+      clearSession()
+      broadcastAuthLogout()
     }
   }
 
@@ -87,6 +93,7 @@ export const useUserStore = defineStore('user', () => {
     user,
     bootstrapped,
     isAuthenticated,
+    clearSession,
     sendCode,
     register,
     login,
